@@ -2,3 +2,8 @@ build/
 dist/
 screenshots/
 node_modules/
+
+# Local env — never commit real credentials. .env.example is committed.
+.env
+.env.local
+.env.*.local
