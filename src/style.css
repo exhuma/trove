@@ -1,0 +1,30 @@
+/* Fonts are bundled locally rather than pulled from the Google Fonts CDN: this
+   app must render correctly with no network, opened straight from disk.
+   Bebas Neue and Inter are both SIL OFL 1.1.
+   Latin subsets only — the full families ship Cyrillic/Greek/Vietnamese that
+   this UI never renders, and every byte here is inlined into index.html. */
+@import '@fontsource/bebas-neue/latin-400.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-hall font-body text-ink antialiased;
+  }
+
+  /* Keeps the footer at the bottom of short pages instead of floating it
+     directly under the content. */
+  #app {
+    @apply flex min-h-screen flex-col;
+  }
+
+  /* A visible focus ring everywhere, for keyboard users. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-violet-bright ring-offset-2 ring-offset-hall;
+  }
+}

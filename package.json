@@ -1,0 +1,29 @@
+{
+  "name": "collectibles-demo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "seed": "node scripts/seed.mjs"
+  },
+  "dependencies": {
+    "@fontsource/bebas-neue": "^5.2.7",
+    "@fontsource/inter": "^5.2.8",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "playwright": "^1.61.1",
+    "postcss": "^8.4.49",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-singlefile": "^2.1.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

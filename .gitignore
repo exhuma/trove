@@ -1,0 +1,4 @@
+build/
+dist/
+screenshots/
+node_modules/
