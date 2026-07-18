@@ -73,7 +73,13 @@ export async function searchCards(query: string, signal: AbortSignal): Promise<S
 
 /** Fetches a chosen card's image as a Blob, ready to downscale and store. */
 export async function fetchCardImage(url: string, signal: AbortSignal): Promise<Blob> {
-  const res = await fetch(url, { signal })
+  // Scryfall's image CDN answers with `Access-Control-Allow-Origin: *` — but only
+  // when the cached entry was created by a request that carried an Origin. A prior
+  // non-CORS hit (a crawler, a prefetch) can poison the cache with a header-less
+  // copy that then blocks the browser's cross-origin fetch. A per-request cache
+  // buster sidesteps that entry, so the CDN serves a fresh, CORS-enabled response.
+  const busted = `${url}${url.includes('?') ? '&' : '?'}cors=${Date.now()}`
+  const res = await fetch(busted, { signal, mode: 'cors' })
   if (!res.ok) throw new Error(`Could not download that card image (${res.status}).`)
   return res.blob()
 }

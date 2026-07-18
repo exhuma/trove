@@ -96,11 +96,17 @@ function submit() {
       </button>
     </div>
 
-    <ScryfallSearch
-      v-if="tab === 'search'"
-      @pick="pickCard"
-      @zoom="(card) => emit('zoom', { src: card.imageUrl, alt: card.name })"
-    />
+    <template v-if="tab === 'search'">
+      <ScryfallSearch
+        @pick="pickCard"
+        @zoom="(card) => emit('zoom', { src: card.imageUrl, alt: card.name })"
+      />
+      <!-- Picking a card downloads its art; if that fails the error must show
+           here, on the search tab, or the pick looks like it silently did
+           nothing (there is no submit button on this tab to carry it). -->
+      <p v-if="busy" class="mt-3 text-xs text-ink-muted">Fetching the card image…</p>
+      <p v-else-if="localError" class="mt-3 text-xs text-danger">{{ localError }}</p>
+    </template>
 
     <form v-else @submit.prevent="submit">
       <div
