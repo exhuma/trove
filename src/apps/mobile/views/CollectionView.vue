@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useCollection, progressOf } from '@core/composables/useCollection'
+import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAuth } from '@core/auth'
 import type { CollectibleSet } from '@core/types'
@@ -9,6 +10,8 @@ import AddSetSheet from '../components/AddSetSheet.vue'
 import AddCollectibleSheet from '../components/AddCollectibleSheet.vue'
 import ConfirmSheet from '../components/ConfirmSheet.vue'
 import EditWantedSheet from '../components/EditWantedSheet.vue'
+import OwnedStepper from '../components/OwnedStepper.vue'
+import NavSwitcher from '../components/NavSwitcher.vue'
 
 // The mobile "pocket" build now authors as well as browses: create and delete
 // sets and collectibles, adjust owned counts, and edit the wanted target — all
@@ -17,6 +20,7 @@ const { sets, loading, error, addSet, removeSet, addCollectible, removeCollectib
   useCollection()
 const { push } = useToast()
 const { signOut } = useAuth()
+const { needingCount } = useNeeds()
 
 const openSetId = ref<string | null>(null)
 const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) ?? null)
@@ -43,9 +47,9 @@ const overlayOpen = computed(
     !!zoom.value,
 )
 
-function bump(collectibleId: string, delta: number, current: number) {
+function onSetOwned(collectibleId: string, count: number) {
   if (!openSetId.value) return
-  const result = setOwnedCount(openSetId.value, collectibleId, current + delta)
+  const result = setOwnedCount(openSetId.value, collectibleId, count)
   if (!result.ok) push(result.message, { tone: 'error' })
 }
 
@@ -131,6 +135,10 @@ function deleteSetMessage(set: CollectibleSet) {
       {{ error }}
     </div>
 
+    <!-- Only at the top level: inside a set the header is already a back/title
+         bar, and a second row of navigation would compete with it. -->
+    <NavSwitcher v-if="!openSet" :needing="needingCount" />
+
     <main class="flex-1 px-4 py-4">
       <div v-if="loading && !sets.length" class="py-16 text-center text-sm text-ink-muted">Loading…</div>
 
@@ -154,22 +162,11 @@ function deleteSetMessage(set: CollectibleSet) {
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-ink">{{ c.name }}</p>
             <div class="mt-1 flex items-center gap-2">
-              <button
-                class="grid h-11 w-11 place-items-center rounded-lg border border-hall-line text-ink disabled:opacity-30"
-                :disabled="c.owned <= 0"
-                aria-label="Decrease owned"
-                @click="bump(c.id, -1, c.owned)"
-              >
-                −
-              </button>
-              <span class="w-5 text-center text-base tabular-nums text-ink">{{ c.owned }}</span>
-              <button
-                class="grid h-11 w-11 place-items-center rounded-lg border border-hall-line text-ink"
-                aria-label="Increase owned"
-                @click="bump(c.id, 1, c.owned)"
-              >
-                +
-              </button>
+              <OwnedStepper
+                :owned="c.owned"
+                :name="c.name"
+                @set-owned="(count) => onSetOwned(c.id, count)"
+              />
               <button
                 class="ml-1 inline-flex min-h-11 items-center gap-1 rounded-lg border border-hall-line px-2.5 text-xs"
                 :class="c.owned >= c.target ? 'text-amber-bright' : 'text-ink-muted'"

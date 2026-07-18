@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import TroveWordmark from '@core/components/TroveWordmark.vue'
+import { useAuth } from '@core/auth'
 
-defineProps<{ sets: number; owned: number; wanted: number; completeSets: number }>()
-const emit = defineEmits<{ addSet: []; signOut: [] }>()
+defineProps<{
+  sets: number
+  owned: number
+  wanted: number
+  completeSets: number
+  /** Collectibles short of their target — the count beside the Needs link. */
+  needing: number
+}>()
+const emit = defineEmits<{ addSet: [] }>()
+
+const { signOut } = useAuth()
 </script>
 
 <template>
@@ -20,6 +30,32 @@ const emit = defineEmits<{ addSet: []; signOut: [] }>()
         </p>
       </div>
 
+      <!-- exact-active-class, not active-class: "/" is a prefix of every route, so
+           the Collection link would otherwise stay lit on /needs. Exact matching
+           also gives us aria-current="page" on the right link for free. -->
+      <nav aria-label="Sections" class="flex shrink-0 items-center gap-1">
+        <RouterLink
+          to="/"
+          exact-active-class="bg-hall-panel text-ink"
+          class="rounded-lg px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink motion-safe:transition"
+        >
+          Collection
+        </RouterLink>
+        <RouterLink
+          to="/needs"
+          exact-active-class="bg-hall-panel text-ink"
+          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink motion-safe:transition"
+        >
+          Needs
+          <span
+            v-if="needing"
+            class="rounded-full bg-amber-muted/50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-amber-bright"
+          >
+            {{ needing }}
+          </span>
+        </RouterLink>
+      </nav>
+
       <button
         class="flex shrink-0 items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright motion-safe:transition"
         @click="emit('addSet')"
@@ -32,7 +68,7 @@ const emit = defineEmits<{ addSet: []; signOut: [] }>()
 
       <button
         class="shrink-0 rounded-lg border border-hall-line px-3 py-2 text-sm font-medium text-ink-muted hover:border-violet hover:text-ink motion-safe:transition"
-        @click="emit('signOut')"
+        @click="signOut"
       >
         Sign out
       </button>

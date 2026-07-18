@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppHeader from '../components/AppHeader.vue'
 import SetCard from '../components/SetCard.vue'
 import SetDetail from '../components/SetDetail.vue'
-import AddSetDialog from '../components/AddSetDialog.vue'
 import AddCollectibleDialog from '../components/AddCollectibleDialog.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -11,13 +9,13 @@ import FanContentFooter from '../components/FanContentFooter.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import { useCollection } from '@core/composables/useCollection'
 import { useToast } from '@core/composables/useToast'
-import { useAuth } from '@core/auth'
+import { useAddSetPrompt } from '../composables/useAddSetPrompt'
 import type { CollectibleSet } from '@core/types'
 
-const { sets, totals, loading, error, addSet, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
+const { sets, loading, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
   useCollection()
 const { push } = useToast()
-const { signOut } = useAuth()
+const { openAddSet } = useAddSetPrompt()
 
 function onSetOwned(id: string, count: number) {
   if (!openSetId.value) return
@@ -34,7 +32,6 @@ function onSetTarget(id: string, target: number) {
 const openSetId = ref<string | null>(null)
 const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) ?? null)
 
-const showAddSet = ref(false)
 const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
 
@@ -51,13 +48,6 @@ function zoomCollectible(set: CollectibleSet, id: string) {
 // about to delete without a discriminated union.
 const setPendingDelete = ref<CollectibleSet | null>(null)
 const collectiblePendingDelete = ref<{ setId: string; id: string; name: string } | null>(null)
-
-async function onAddSet(name: string) {
-  const result = await addSet(name)
-  if (!result.ok) return push(result.message, { tone: 'error' })
-  showAddSet.value = false
-  push(`Created “${name}”.`)
-}
 
 async function onAddCollectible(payload: { name: string; blob: Blob }) {
   if (!openSetId.value) return
@@ -98,20 +88,6 @@ function deleteSetMessage(set: CollectibleSet) {
 </script>
 
 <template>
-  <AppHeader
-    :sets="totals.sets"
-    :owned="totals.owned"
-    :wanted="totals.wanted"
-    :complete-sets="totals.completeSets"
-    @add-set="showAddSet = true"
-    @sign-out="signOut"
-  />
-
-  <!-- A load or save failed against the backend. -->
-  <div v-if="error" class="border-b border-danger/40 bg-danger/10 px-6 py-2">
-    <p class="mx-auto max-w-6xl text-center text-xs text-danger">{{ error }}</p>
-  </div>
-
   <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
     <div v-if="loading && !sets.length" class="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted">
       <svg class="h-4 w-4 motion-safe:animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
@@ -147,7 +123,7 @@ function deleteSetMessage(set: CollectibleSet) {
       >
         <button
           class="rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright"
-          @click="showAddSet = true"
+          @click="openAddSet"
         >
           Create your first set
         </button>
@@ -162,8 +138,6 @@ function deleteSetMessage(set: CollectibleSet) {
   </main>
 
   <FanContentFooter />
-
-  <AddSetDialog v-if="showAddSet" @add="onAddSet" @close="showAddSet = false" />
 
   <AddCollectibleDialog
     v-if="showAddCollectible && openSet"
