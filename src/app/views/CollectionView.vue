@@ -1,23 +1,27 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppHeader from '../components/AppHeader.vue'
 import SetCard from '../components/SetCard.vue'
 import SetDetail from '../components/SetDetail.vue'
-import AddSetOverlay from '../components/AddSetOverlay.vue'
+import NavSwitcher from '../components/NavSwitcher.vue'
 import AddCollectibleOverlay from '../components/AddCollectibleOverlay.vue'
 import ConfirmOverlay from '../components/ConfirmOverlay.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FanContentFooter from '../components/FanContentFooter.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import { useCollection } from '@core/composables/useCollection'
+import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
-import { useAuth } from '@core/auth'
+import { useAddSetPrompt } from '../composables/useAddSetPrompt'
 import type { CollectibleSet } from '@core/types'
 
-const { sets, totals, loading, error, addSet, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
+// Header, error banner and the add-set dialog now live in the shell (App.vue) so
+// they persist across the collection and needs routes; this view drives only the
+// set list, the set detail, and the per-collectible overlays.
+const { sets, loading, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
   useCollection()
+const { needingCount } = useNeeds()
 const { push } = useToast()
-const { signOut } = useAuth()
+const { open: showAddSet, openAddSet } = useAddSetPrompt()
 
 function onSetOwned(id: string, count: number) {
   if (!openSetId.value) return
@@ -34,7 +38,6 @@ function onSetTarget(id: string, target: number) {
 const openSetId = ref<string | null>(null)
 const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) ?? null)
 
-const showAddSet = ref(false)
 const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
 
@@ -70,15 +73,8 @@ function onFab() {
     addCollectibleError.value = ''
     showAddCollectible.value = true
   } else {
-    showAddSet.value = true
+    openAddSet()
   }
-}
-
-async function onAddSet(name: string) {
-  const result = await addSet(name)
-  if (!result.ok) return push(result.message, { tone: 'error' })
-  showAddSet.value = false
-  push(`Created “${name}”.`)
 }
 
 async function onAddCollectible(payload: { name: string; blob: Blob }) {
@@ -120,19 +116,9 @@ function deleteSetMessage(set: CollectibleSet) {
 </script>
 
 <template>
-  <AppHeader
-    :sets="totals.sets"
-    :owned="totals.owned"
-    :wanted="totals.wanted"
-    :complete-sets="totals.completeSets"
-    @add-set="showAddSet = true"
-    @sign-out="signOut"
-  />
-
-  <!-- A load or save failed against the backend. -->
-  <div v-if="error" class="border-b border-danger/40 bg-danger/10 px-6 py-2">
-    <p class="mx-auto max-w-6xl text-center text-xs text-danger">{{ error }}</p>
-  </div>
+  <!-- Phone section nav; hidden inside a set, where the detail wants the screen.
+       On `sm` up the nav lives in the header instead. -->
+  <NavSwitcher v-if="!openSet" :needing="needingCount" />
 
   <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
     <div v-if="loading && !sets.length" class="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted">
@@ -169,7 +155,7 @@ function deleteSetMessage(set: CollectibleSet) {
       >
         <button
           class="rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright"
-          @click="showAddSet = true"
+          @click="openAddSet"
         >
           Create your first set
         </button>
@@ -197,8 +183,6 @@ function deleteSetMessage(set: CollectibleSet) {
       <path d="M12 5v14M5 12h14" stroke-linecap="round" />
     </svg>
   </button>
-
-  <AddSetOverlay v-if="showAddSet" @add="onAddSet" @close="showAddSet = false" />
 
   <AddCollectibleOverlay
     v-if="showAddCollectible && openSet"

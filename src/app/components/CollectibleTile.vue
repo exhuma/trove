@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Collectible } from '@core/types'
+import OwnedStepper from './OwnedStepper.vue'
 
 const props = defineProps<{ collectible: Collectible }>()
 const emit = defineEmits<{
@@ -74,34 +75,13 @@ function onTargetInput(event: Event) {
            leaves a tile too narrow for the steppers and the "want" field side by
            side, so they stack; from `sm` up they sit on one row as on desktop. -->
       <div class="flex flex-col items-stretch gap-2 border-t border-hall-line px-2 py-1.5 sm:flex-row sm:items-center">
-        <div class="flex items-center justify-center gap-1 sm:justify-start">
-          <button
-            class="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-hall-line text-ink-muted hover:border-violet hover:text-ink disabled:opacity-40 disabled:hover:border-hall-line disabled:hover:text-ink-muted motion-safe:transition sm:h-6 sm:w-6"
-            :disabled="collectible.owned <= 0"
-            :aria-label="`Remove a copy of ${collectible.name}`"
-            @click="emit('setOwned', collectible.owned - 1)"
-          >
-            <svg class="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 8h10" stroke-linecap="round" />
-            </svg>
-          </button>
-          <span
-            class="min-w-[3.5rem] text-center text-xs tabular-nums"
-            :class="complete ? 'text-ink' : 'text-ink-muted'"
-            aria-live="polite"
-          >
-            {{ collectible.owned }} of {{ collectible.target }} owned
-          </span>
-          <button
-            class="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-hall-line text-ink-muted hover:border-violet hover:text-ink motion-safe:transition sm:h-6 sm:w-6"
-            :aria-label="`Add a copy of ${collectible.name}`"
-            @click="emit('setOwned', collectible.owned + 1)"
-          >
-            <svg class="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 3v10M3 8h10" stroke-linecap="round" />
-            </svg>
-          </button>
-        </div>
+        <OwnedStepper
+          :owned="collectible.owned"
+          :target="collectible.target"
+          :name="collectible.name"
+          :complete="complete"
+          @set-owned="(count) => emit('setOwned', count)"
+        />
 
         <label class="flex items-center justify-center gap-1 text-xs text-ink-faint sm:ml-auto sm:justify-start sm:text-[10px]">
           <span class="sr-only">Copies wanted of {{ collectible.name }}</span>
