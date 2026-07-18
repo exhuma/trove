@@ -106,12 +106,14 @@ onBeforeUnmount(cancelPending)
             <span class="block truncate px-1.5 pt-1 text-left text-[10px] text-ink">{{ card.name }}</span>
             <span class="block truncate px-1.5 pb-1 text-left text-[10px] text-ink-faint">{{ card.setName }}</span>
           </button>
+          <!-- Hover-reveal on pointer devices; always visible where there is no
+               hover (touch), so a phone can still zoom the artwork. -->
           <button
-            class="absolute right-1 top-1 rounded-md bg-hall/80 p-1 text-ink-muted opacity-0 backdrop-blur-sm hover:bg-violet hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition"
+            class="absolute right-1 top-1 grid h-11 w-11 place-items-center rounded-md bg-hall/80 text-ink-muted opacity-0 backdrop-blur-sm hover:bg-violet hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 motion-safe:transition"
             :aria-label="`Zoom artwork for ${card.name} from ${card.setName}`"
             @click="emit('zoom', card)"
           >
-            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="7" cy="7" r="4.5" />
               <path d="M10.5 10.5L14 14M5 7h4M7 5v4" stroke-linecap="round" />
             </svg>

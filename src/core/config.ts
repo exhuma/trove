@@ -9,6 +9,8 @@
  * a server-side context.
  */
 
+import { useMemoryBackend } from './dev-backend'
+
 function required(name: string): string {
   const value = import.meta.env[name] as string | undefined
   // Fail loudly at boot rather than letting the Supabase client construct with an
@@ -22,7 +24,12 @@ function required(name: string): string {
   return value
 }
 
-export const config = {
-  supabaseUrl: required('VITE_SUPABASE_URL'),
-  supabasePublishableKey: required('VITE_SUPABASE_PUBLISHABLE_KEY'),
-} as const
+// The in-memory dev backend never contacts Supabase, so it needs no real
+// credentials. A syntactically valid placeholder keeps the client constructor
+// (see `supabase.ts`) happy; nothing ever calls it in that mode.
+export const config = useMemoryBackend
+  ? ({ supabaseUrl: 'http://memory.local', supabasePublishableKey: 'memory-backend' } as const)
+  : ({
+      supabaseUrl: required('VITE_SUPABASE_URL'),
+      supabasePublishableKey: required('VITE_SUPABASE_PUBLISHABLE_KEY'),
+    } as const)

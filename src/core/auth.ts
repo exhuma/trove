@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { useMemoryBackend } from './dev-backend'
 
 // Module-scope singleton: one auth state shared by every caller, mirroring the
 // composable style used elsewhere (no store library).
@@ -9,21 +10,32 @@ const ready = ref(false)
 
 // Resolves once the initial session check completes, so route guards can wait for it
 // instead of bouncing a signed-in user to /login on a hard refresh.
-let markReady: () => void
+let markReady: () => void = () => {}
 export const authReady = new Promise<void>((resolve) => {
   markReady = resolve
 })
 
-// Seed from any persisted session, then keep it live. `onAuthStateChange` also fires
-// after the magic-link redirect is detected on the callback route.
-void supabase.auth.getSession().then(({ data }) => {
-  session.value = data.session
+// A stand-in session for the in-memory dev backend: enough shape for the app,
+// which only ever reads `session.user.id`. No Supabase involved.
+const DEV_SESSION = { user: { id: 'dev-user' } } as unknown as Session
+
+if (useMemoryBackend) {
+  // Start signed in so a dev loop lands straight on the collection, no login step.
+  session.value = DEV_SESSION
   ready.value = true
   markReady()
-})
-supabase.auth.onAuthStateChange((_event, next) => {
-  session.value = next
-})
+} else {
+  // Seed from any persisted session, then keep it live. `onAuthStateChange` also fires
+  // after the magic-link redirect is detected on the callback route.
+  void supabase.auth.getSession().then(({ data }) => {
+    session.value = data.session
+    ready.value = true
+    markReady()
+  })
+  supabase.auth.onAuthStateChange((_event, next) => {
+    session.value = next
+  })
+}
 
 /** Where the magic-link email should send the user back to. */
 function callbackUrl(): string {
@@ -34,6 +46,7 @@ export type AuthResult = { error: string | null }
 
 export function useAuth() {
   async function signUp(email: string, password: string): Promise<AuthResult> {
+    if (useMemoryBackend) return signInMemory()
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -43,11 +56,13 @@ export function useAuth() {
   }
 
   async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
+    if (useMemoryBackend) return signInMemory()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message ?? null }
   }
 
   async function signInWithMagicLink(email: string): Promise<AuthResult> {
+    if (useMemoryBackend) return signInMemory()
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: callbackUrl() },
@@ -56,7 +71,17 @@ export function useAuth() {
   }
 
   async function signOut(): Promise<void> {
+    if (useMemoryBackend) {
+      session.value = null
+      return
+    }
     await supabase.auth.signOut()
+  }
+
+  // In the dev backend any credential is accepted and drops you straight in.
+  function signInMemory(): AuthResult {
+    session.value = DEV_SESSION
+    return { error: null }
   }
 
   return {
