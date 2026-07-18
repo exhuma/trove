@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@core/auth'
+import TroveWordmark from '@core/components/TroveWordmark.vue'
 
 const { signInWithPassword, signUp, signInWithMagicLink } = useAuth()
 const router = useRouter()
@@ -66,8 +67,8 @@ async function submitMagicLink() {
 
 <template>
   <main class="flex min-h-screen flex-col justify-center px-6 py-10">
-    <h1 class="mb-1 text-center font-display text-4xl leading-none tracking-[0.2em] text-ink">
-      COLLECT<span class="text-violet-bright">ibles</span>
+    <h1 class="mb-1 flex justify-center">
+      <TroveWordmark size="lg" />
     </h1>
     <p class="mb-8 text-center text-sm text-ink-muted">
       {{ mode === 'signin' ? 'Sign in to your collection' : 'Create your account' }}

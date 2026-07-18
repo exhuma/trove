@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useCollection, progressOf } from '@core/composables/useCollection'
 import { useToast } from '@core/composables/useToast'
 import { useAuth } from '@core/auth'
+import TroveWordmark from '@core/components/TroveWordmark.vue'
 
 // The mobile "pocket" build is read-and-adjust only: browse your sets and bump owned
 // counts on the go. Creating/deleting sets and collectibles lives in the desktop app.
@@ -38,8 +39,8 @@ function bump(collectibleId: string, delta: number, current: number) {
         </svg>
         Sets
       </button>
-      <h1 v-else class="font-display text-2xl leading-none tracking-[0.15em] text-ink">
-        COLLECT<span class="text-violet-bright">ibles</span>
+      <h1 v-else>
+        <TroveWordmark size="sm" />
       </h1>
 
       <span class="min-w-0 flex-1 truncate text-center font-display text-lg tracking-wide text-ink">

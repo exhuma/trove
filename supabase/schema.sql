@@ -1,4 +1,4 @@
--- Collectibles schema — plain PostgreSQL + Supabase auth. Portable: the only
+-- Trove schema — plain PostgreSQL + Supabase auth. Portable: the only
 -- Supabase-specific references are auth.users / auth.uid(), so the data model could
 -- migrate to vanilla Postgres by swapping those out.
 --

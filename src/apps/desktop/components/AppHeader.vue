@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TroveWordmark from '@core/components/TroveWordmark.vue'
+
 defineProps<{ sets: number; owned: number; wanted: number; completeSets: number }>()
 const emit = defineEmits<{ addSet: []; signOut: [] }>()
 </script>
@@ -9,8 +11,8 @@ const emit = defineEmits<{ addSet: []; signOut: [] }>()
       <div class="min-w-0 flex-1">
         <!-- The banner wordmark: bold, uppercase, letterspaced, echoing the
              convention-hall signage the theme is drawn from. -->
-        <h1 class="font-display text-3xl leading-none tracking-[0.2em] text-ink">
-          COLLECT<span class="text-violet-bright">ibles</span>
+        <h1>
+          <TroveWordmark size="md" />
         </h1>
         <p class="mt-1 truncate text-xs text-ink-muted">
           {{ sets }} {{ sets === 1 ? 'set' : 'sets' }} · {{ owned }} owned · {{ wanted }} wanted
