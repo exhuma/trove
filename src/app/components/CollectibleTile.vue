@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Collectible } from '@core/types'
-import OwnedStepper from './OwnedStepper.vue'
 
 const props = defineProps<{ collectible: Collectible }>()
 const emit = defineEmits<{
@@ -71,17 +70,40 @@ function onTargetInput(event: Event) {
       </div>
 
       <!-- Owned/wanted controls. Adjusting copies is the frequent action, so the
-           steppers get generous targets (Fitts's law). -->
-      <div class="flex items-center gap-2 border-t border-hall-line px-2 py-1.5">
-        <OwnedStepper
-          :owned="collectible.owned"
-          :target="collectible.target"
-          :name="collectible.name"
-          :complete="complete"
-          @set-owned="(count) => emit('setOwned', count)"
-        />
+           steppers get generous targets (Fitts's law). On a phone the two-up grid
+           leaves a tile too narrow for the steppers and the "want" field side by
+           side, so they stack; from `sm` up they sit on one row as on desktop. -->
+      <div class="flex flex-col items-stretch gap-2 border-t border-hall-line px-2 py-1.5 sm:flex-row sm:items-center">
+        <div class="flex items-center justify-center gap-1 sm:justify-start">
+          <button
+            class="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-hall-line text-ink-muted hover:border-violet hover:text-ink disabled:opacity-40 disabled:hover:border-hall-line disabled:hover:text-ink-muted motion-safe:transition sm:h-6 sm:w-6"
+            :disabled="collectible.owned <= 0"
+            :aria-label="`Remove a copy of ${collectible.name}`"
+            @click="emit('setOwned', collectible.owned - 1)"
+          >
+            <svg class="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 8h10" stroke-linecap="round" />
+            </svg>
+          </button>
+          <span
+            class="min-w-[3.5rem] text-center text-xs tabular-nums"
+            :class="complete ? 'text-ink' : 'text-ink-muted'"
+            aria-live="polite"
+          >
+            {{ collectible.owned }} of {{ collectible.target }} owned
+          </span>
+          <button
+            class="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-hall-line text-ink-muted hover:border-violet hover:text-ink motion-safe:transition sm:h-6 sm:w-6"
+            :aria-label="`Add a copy of ${collectible.name}`"
+            @click="emit('setOwned', collectible.owned + 1)"
+          >
+            <svg class="h-3.5 w-3.5 sm:h-3 sm:w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3v10M3 8h10" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
 
-        <label class="ml-auto flex items-center gap-1 text-[10px] text-ink-faint">
+        <label class="flex items-center justify-center gap-1 text-xs text-ink-faint sm:ml-auto sm:justify-start sm:text-[10px]">
           <span class="sr-only">Copies wanted of {{ collectible.name }}</span>
           <span aria-hidden="true">want</span>
           <input
@@ -89,7 +111,7 @@ function onTargetInput(event: Event) {
             min="1"
             :value="collectible.target"
             :aria-label="`Copies wanted of ${collectible.name}`"
-            class="w-12 rounded-md border border-hall-line bg-hall px-1.5 py-0.5 text-center text-xs text-ink tabular-nums focus:border-violet focus:outline-none"
+            class="h-9 w-16 rounded-md border border-hall-line bg-hall px-1.5 text-center text-base text-ink tabular-nums focus:border-violet focus:outline-none sm:h-auto sm:w-12 sm:py-0.5 sm:text-xs"
             @change="onTargetInput"
           />
         </label>
@@ -97,9 +119,10 @@ function onTargetInput(event: Event) {
     </div>
 
     <!-- Overlay controls sit outside the card frame's flow so they never nest
-         inside another interactive element. -->
+         inside another interactive element. Always visible on touch (no hover);
+         hover-revealed from `sm` up. -->
     <button
-      class="absolute left-1.5 top-1.5 rounded-md bg-hall/80 p-1 text-ink-muted opacity-0 backdrop-blur-sm hover:bg-violet hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition"
+      class="absolute left-1.5 top-1.5 rounded-md bg-hall/80 p-1 text-ink-muted backdrop-blur-sm hover:bg-violet hover:text-ink motion-safe:transition sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
       :aria-label="`Zoom artwork for ${collectible.name}`"
       @click="emit('zoom')"
     >
@@ -110,7 +133,7 @@ function onTargetInput(event: Event) {
     </button>
 
     <button
-      class="absolute right-1.5 top-1.5 rounded-md bg-hall/80 p-1 text-ink-muted opacity-0 backdrop-blur-sm hover:bg-danger hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition"
+      class="absolute right-1.5 top-1.5 rounded-md bg-hall/80 p-1 text-ink-muted backdrop-blur-sm hover:bg-danger hover:text-ink motion-safe:transition sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
       :aria-label="`Remove ${collectible.name}`"
       @click="emit('remove')"
     >

@@ -77,8 +77,9 @@ const preview = computed(() => props.set.collectibles.slice(0, 4))
       <ProgressBar :owned="progress.owned" :total="progress.total" :complete="progress.complete" />
     </button>
 
+    <!-- Always visible on touch (no hover); hover-revealed from `sm` up. -->
     <button
-      class="absolute right-2 top-2 rounded-md p-1.5 text-ink-faint opacity-0 hover:bg-danger hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition"
+      class="absolute right-2 top-2 rounded-md p-1.5 text-ink-faint hover:bg-danger hover:text-ink motion-safe:transition sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
       :aria-label="`Delete set ${set.name}`"
       @click="emit('remove')"
     >

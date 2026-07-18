@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
-import BaseDialog from './BaseDialog.vue'
+import BaseOverlay from './BaseOverlay.vue'
 import ScryfallSearch from '@core/components/ScryfallSearch.vue'
 import { fileToStorableBlob, toStorableBlob } from '@core/image'
 import { fetchCardImage, type CardResult } from '@core/scryfall'
@@ -22,6 +22,8 @@ const imageBlob = ref<Blob | null>(null)
 const previewUrl = ref('')
 const localError = ref('')
 const busy = ref(false)
+// Drag-and-drop is a desktop affordance; the handlers stay wired but are simply
+// inert on touch, where the file input (with camera capture) does the job.
 const dragging = ref(false)
 
 function setImage(blob: Blob) {
@@ -79,14 +81,14 @@ function submit() {
 </script>
 
 <template>
-  <BaseDialog :title="`Add to ${props.setName}`" @close="emit('close')">
+  <BaseOverlay :title="`Add to ${props.setName}`" @close="emit('close')">
     <div class="mb-4 flex gap-1 rounded-lg bg-hall p-1" role="tablist">
       <button
         v-for="option in (['upload', 'search'] as Tab[])"
         :key="option"
         role="tab"
         :aria-selected="tab === option"
-        class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium motion-safe:transition"
+        class="min-h-11 flex-1 rounded-md px-3 text-sm font-medium motion-safe:transition sm:min-h-0 sm:py-1.5"
         :class="tab === option ? 'bg-violet text-ink' : 'text-ink-muted hover:text-ink'"
         @click="tab = option"
       >
@@ -121,12 +123,14 @@ function submit() {
 
         <div class="min-w-0">
           <label
-            class="inline-block cursor-pointer rounded-lg border border-hall-line px-3 py-1.5 text-sm text-ink hover:border-violet"
+            class="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-hall-line px-3 text-sm text-ink hover:border-violet sm:min-h-0 sm:py-1.5"
           >
             {{ imageBlob ? 'Choose a different picture' : 'Choose a picture' }}
             <input type="file" accept="image/*" class="sr-only" @change="acceptFile(($event.target as HTMLInputElement).files?.[0])" />
           </label>
-          <p class="mt-1.5 text-xs text-ink-faint">…or drag one in. Large images are scaled down automatically.</p>
+          <p class="mt-1.5 text-xs text-ink-faint">
+            Take a photo, pick one, or drag one in. Large images are scaled down automatically.
+          </p>
         </div>
       </div>
 
@@ -137,7 +141,7 @@ function submit() {
         type="text"
         placeholder="Brightblade Stoat"
         autocomplete="off"
-        class="w-full rounded-lg border border-hall-line bg-hall px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none"
+        class="h-11 w-full rounded-lg border border-hall-line bg-hall px-3 text-base text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none sm:h-auto sm:py-2 sm:text-sm"
         @input="localError = ''"
       />
 
@@ -145,10 +149,10 @@ function submit() {
            slot, so there is only ever one place to look. -->
       <p v-if="localError || props.error" class="mt-2 text-xs text-danger">{{ localError || props.error }}</p>
 
-      <div class="mt-6 flex justify-end gap-2">
+      <div class="mt-6 flex gap-2 sm:justify-end">
         <button
           type="button"
-          class="rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink"
+          class="min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink sm:flex-none"
           @click="emit('close')"
         >
           Cancel
@@ -156,11 +160,11 @@ function submit() {
         <button
           type="submit"
           :disabled="busy"
-          class="rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50"
+          class="min-h-11 flex-1 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50 sm:flex-none"
         >
           {{ busy ? 'Working…' : 'Add collectible' }}
         </button>
       </div>
     </form>
-  </BaseDialog>
+  </BaseOverlay>
 </template>

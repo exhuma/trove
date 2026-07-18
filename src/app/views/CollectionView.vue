@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import AppHeader from '../components/AppHeader.vue'
 import SetCard from '../components/SetCard.vue'
 import SetDetail from '../components/SetDetail.vue'
-import AddCollectibleDialog from '../components/AddCollectibleDialog.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
+import AddSetOverlay from '../components/AddSetOverlay.vue'
+import AddCollectibleOverlay from '../components/AddCollectibleOverlay.vue'
+import ConfirmOverlay from '../components/ConfirmOverlay.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FanContentFooter from '../components/FanContentFooter.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import { useCollection } from '@core/composables/useCollection'
 import { useToast } from '@core/composables/useToast'
-import { useAddSetPrompt } from '../composables/useAddSetPrompt'
+import { useAuth } from '@core/auth'
 import type { CollectibleSet } from '@core/types'
 
-const { sets, loading, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
+const { sets, totals, loading, error, addSet, removeSet, addCollectible, removeCollectible, setOwnedCount, setTarget } =
   useCollection()
 const { push } = useToast()
-const { openAddSet } = useAddSetPrompt()
+const { signOut } = useAuth()
 
 function onSetOwned(id: string, count: number) {
   if (!openSetId.value) return
@@ -32,6 +34,7 @@ function onSetTarget(id: string, target: number) {
 const openSetId = ref<string | null>(null)
 const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) ?? null)
 
+const showAddSet = ref(false)
 const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
 
@@ -48,6 +51,35 @@ function zoomCollectible(set: CollectibleSet, id: string) {
 // about to delete without a discriminated union.
 const setPendingDelete = ref<CollectibleSet | null>(null)
 const collectiblePendingDelete = ref<{ setId: string; id: string; name: string } | null>(null)
+
+// The phone FAB is contextual (add a set on the list, a collectible inside a
+// set) and hides whenever an overlay or the lightbox is open so it never sits
+// over a form. On `sm` up the FAB is display:none and the header/detail buttons
+// take over, so this only matters on narrow screens.
+const overlayOpen = computed(
+  () =>
+    showAddSet.value ||
+    showAddCollectible.value ||
+    !!setPendingDelete.value ||
+    !!collectiblePendingDelete.value ||
+    !!zoomImage.value,
+)
+
+function onFab() {
+  if (openSet.value) {
+    addCollectibleError.value = ''
+    showAddCollectible.value = true
+  } else {
+    showAddSet.value = true
+  }
+}
+
+async function onAddSet(name: string) {
+  const result = await addSet(name)
+  if (!result.ok) return push(result.message, { tone: 'error' })
+  showAddSet.value = false
+  push(`Created “${name}”.`)
+}
 
 async function onAddCollectible(payload: { name: string; blob: Blob }) {
   if (!openSetId.value) return
@@ -88,7 +120,21 @@ function deleteSetMessage(set: CollectibleSet) {
 </script>
 
 <template>
-  <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+  <AppHeader
+    :sets="totals.sets"
+    :owned="totals.owned"
+    :wanted="totals.wanted"
+    :complete-sets="totals.completeSets"
+    @add-set="showAddSet = true"
+    @sign-out="signOut"
+  />
+
+  <!-- A load or save failed against the backend. -->
+  <div v-if="error" class="border-b border-danger/40 bg-danger/10 px-6 py-2">
+    <p class="mx-auto max-w-6xl text-center text-xs text-danger">{{ error }}</p>
+  </div>
+
+  <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
     <div v-if="loading && !sets.length" class="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted">
       <svg class="h-4 w-4 motion-safe:animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="8" cy="8" r="6" class="opacity-25" />
@@ -123,7 +169,7 @@ function deleteSetMessage(set: CollectibleSet) {
       >
         <button
           class="rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright"
-          @click="openAddSet"
+          @click="showAddSet = true"
         >
           Create your first set
         </button>
@@ -139,7 +185,22 @@ function deleteSetMessage(set: CollectibleSet) {
 
   <FanContentFooter />
 
-  <AddCollectibleDialog
+  <!-- Phone-only floating add button; the header / detail buttons cover `sm` up. -->
+  <button
+    v-if="!overlayOpen && !(loading && !sets.length)"
+    class="fixed z-40 grid h-14 w-14 place-items-center rounded-full bg-violet text-ink shadow-lg shadow-violet-muted/30 hover:bg-violet-bright sm:hidden"
+    style="right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom))"
+    :aria-label="openSet ? 'Add collectible' : 'Add set'"
+    @click="onFab"
+  >
+    <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+    </svg>
+  </button>
+
+  <AddSetOverlay v-if="showAddSet" @add="onAddSet" @close="showAddSet = false" />
+
+  <AddCollectibleOverlay
     v-if="showAddCollectible && openSet"
     :set-name="openSet.name"
     :error="addCollectibleError"
@@ -148,7 +209,7 @@ function deleteSetMessage(set: CollectibleSet) {
     @close="showAddCollectible = false"
   />
 
-  <ConfirmDialog
+  <ConfirmOverlay
     v-if="setPendingDelete"
     title="Delete this set?"
     :message="deleteSetMessage(setPendingDelete)"
@@ -157,7 +218,7 @@ function deleteSetMessage(set: CollectibleSet) {
     @close="setPendingDelete = null"
   />
 
-  <ConfirmDialog
+  <ConfirmOverlay
     v-if="collectiblePendingDelete"
     title="Remove this collectible?"
     :message="`“${collectiblePendingDelete.name}” will be removed from the set. You can undo this straight afterwards.`"

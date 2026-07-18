@@ -69,12 +69,12 @@ async function submitMagicLink() {
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center px-6">
+  <main class="grid min-h-screen place-items-center px-6 py-10">
     <div class="w-full max-w-sm">
       <h1 class="mb-1 flex justify-center">
         <TroveWordmark size="lg" />
       </h1>
-      <p class="mb-8 text-center text-xs text-ink-muted">
+      <p class="mb-8 text-center text-sm text-ink-muted sm:text-xs">
         {{ mode === 'signin' ? 'Sign in to your collection' : 'Create your account' }}
       </p>
 
@@ -85,8 +85,9 @@ async function submitMagicLink() {
             id="email"
             v-model="email"
             type="email"
+            inputmode="email"
             autocomplete="email"
-            class="w-full rounded-lg border border-hall-line bg-hall px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none"
+            class="w-full rounded-xl border border-hall-line bg-hall px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm"
             @input="reset"
           />
         </div>
@@ -98,18 +99,18 @@ async function submitMagicLink() {
             v-model="password"
             type="password"
             :autocomplete="mode === 'signin' ? 'current-password' : 'new-password'"
-            class="w-full rounded-lg border border-hall-line bg-hall px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none"
+            class="w-full rounded-xl border border-hall-line bg-hall px-4 py-3 text-base text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm"
             @input="reset"
           />
         </div>
 
-        <p v-if="error" class="text-xs text-danger">{{ error }}</p>
-        <p v-if="notice" class="text-xs text-violet-bright">{{ notice }}</p>
+        <p v-if="error" class="text-sm text-danger sm:text-xs">{{ error }}</p>
+        <p v-if="notice" class="text-sm text-violet-bright sm:text-xs">{{ notice }}</p>
 
         <button
           type="submit"
           :disabled="busy"
-          class="mt-1 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50"
+          class="mt-1 rounded-xl bg-violet px-4 py-3 text-base font-medium text-ink hover:bg-violet-bright disabled:opacity-50 sm:rounded-lg sm:py-2 sm:text-sm"
         >
           {{ busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account' }}
         </button>
@@ -122,13 +123,13 @@ async function submitMagicLink() {
       <button
         type="button"
         :disabled="busy"
-        class="w-full rounded-lg border border-hall-line px-4 py-2 text-sm font-medium text-ink hover:border-violet disabled:opacity-50"
+        class="w-full rounded-xl border border-hall-line px-4 py-3 text-base font-medium text-ink hover:border-violet disabled:opacity-50 sm:rounded-lg sm:py-2 sm:text-sm"
         @click="submitMagicLink"
       >
         Email me a sign-in link
       </button>
 
-      <p class="mt-6 text-center text-xs text-ink-muted">
+      <p class="mt-6 text-center text-sm text-ink-muted sm:text-xs">
         <template v-if="mode === 'signin'">
           No account?
           <button class="text-violet-bright hover:underline" @click="((mode = 'signup'), reset())">Create one</button>

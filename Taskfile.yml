@@ -2,8 +2,8 @@ version: '3'
 
 dotenv: ['.env']
 
-# Two tailored builds share one core and one Supabase backend. Each app builds to its
-# own dist/ and deploys to its own Cloudflare Pages project.
+# One responsive build shares one core and one Supabase backend, builds to dist/,
+# and deploys to a single Cloudflare Pages project.
 tasks:
   install:
     desc: Install dependencies
@@ -11,50 +11,25 @@ tasks:
       - npm ci
 
   dev:
-    desc: Run the desktop dev server
+    desc: Run the dev server
     cmds:
       - npm run dev
 
-  dev:mobile:
-    desc: Run the mobile dev server
-    cmds:
-      - npm run dev:mobile
-
   build:
-    desc: Type-check and build both static bundles into dist/desktop and dist/mobile
+    desc: Type-check and build the static bundle into dist/
     cmds:
       - npm run build
 
-  build:desktop:
-    desc: Build the desktop bundle into dist/desktop
-    cmds:
-      - npm run build:desktop
-
-  build:mobile:
-    desc: Build the mobile bundle into dist/mobile
-    cmds:
-      - npm run build:mobile
-
   preview:
-    desc: Serve the built desktop bundle locally to sanity-check it
-    deps: [build:desktop]
+    desc: Serve the built bundle locally to sanity-check it
+    deps: [build]
     cmds:
       - npm run preview
 
   deploy:
-    desc: Build and deploy both apps to their Cloudflare Pages projects
-    deps: [deploy:desktop, deploy:mobile]
-
-  deploy:desktop:
-    desc: Build and deploy the desktop bundle to Cloudflare Pages
-    deps: [build:desktop]
+    desc: Build and deploy to Cloudflare Pages
+    deps: [build]
     cmds:
       # Requires `wrangler login` once, or CLOUDFLARE_API_TOKEN in the env.
-      # $DESKTOP_PAGES_PROJECT is set in .env (see .env.example).
-      - npx wrangler pages deploy dist/desktop --project-name "$DESKTOP_PAGES_PROJECT"
-
-  deploy:mobile:
-    desc: Build and deploy the mobile bundle to Cloudflare Pages
-    deps: [build:mobile]
-    cmds:
-      - npx wrangler pages deploy dist/mobile --project-name "$MOBILE_PAGES_PROJECT"
+      # $PAGES_PROJECT is set in .env (see .env.example).
+      - npx wrangler pages deploy dist --project-name "$PAGES_PROJECT"

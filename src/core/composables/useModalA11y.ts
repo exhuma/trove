@@ -17,7 +17,7 @@ interface Options {
  * Shared dialog keyboard and focus behaviour: an Escape-to-close handler, a Tab
  * focus trap that keeps focus inside `panel`, initial focus on the first
  * focusable element, and focus restore to the opener on unmount. Extracted from
- * BaseDialog so the lightbox can reuse it without inheriting its chrome.
+ * BaseOverlay so the lightbox can reuse it without inheriting its chrome.
  */
 export function useModalA11y(panel: Ref<HTMLElement | null>, onClose: () => void, options: Options = {}) {
   const capture = options.capture ?? false

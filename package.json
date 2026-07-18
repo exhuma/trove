@@ -5,13 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:mobile": "APP=mobile vite",
     "typecheck": "vue-tsc --noEmit",
-    "build:desktop": "APP=desktop vite build",
-    "build:mobile": "APP=mobile vite build",
-    "build": "npm run typecheck && npm run build:desktop && npm run build:mobile",
-    "preview": "vite preview",
-    "preview:mobile": "APP=mobile vite preview"
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource/bebas-neue": "^5.2.7",

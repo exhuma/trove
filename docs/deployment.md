@@ -18,16 +18,23 @@ Why this shape:
 Consequence: `dist/` is the deployable artifact, and both `VITE_` env vars are baked
 into it at build time. A change of Supabase project means a rebuild, not a config flip.
 
-Two builds, two Pages projects — the richer desktop UI and the lighter mobile UI share
-`src/core/` and one Supabase backend, but ship separately:
+One build, one Pages project — a single responsive app (`src/app/`) adapts its UI to
+the viewport (a hover-rich desktop layout that degrades to bottom sheets, a floating
+action button, and larger touch targets on phones) over the shared `src/core/` and one
+Supabase backend:
 
-| App | Build | Output | Pages project |
-| --- | --- | --- | --- |
-| desktop | `task build:desktop` | `dist/desktop` | `$DESKTOP_PAGES_PROJECT` |
-| mobile | `task build:mobile` | `dist/mobile` | `$MOBILE_PAGES_PROJECT` |
+| Build | Output | Pages project |
+| --- | --- | --- |
+| `task build` | `dist` | `$PAGES_PROJECT` |
 
-Each app ships a `public/_redirects` (`/* /index.html 200`) so client-side routes
+The app ships a `public/_redirects` (`/* /index.html 200`) so client-side routes
 survive a hard refresh.
+
+> **Retiring `trove-mobile`.** This project previously shipped a separate mobile
+> bundle to its own Pages project (`trove-mobile`). It has been folded into the one
+> responsive site. If that project had a live URL, redirect it to the unified site and
+> drop the mobile origin from Supabase's Auth redirect allow-list; keep the `trove`
+> origin (and any custom domain) as the Site URL.
 
 ## Bootstrap (once)
 
@@ -38,22 +45,20 @@ Nothing below is automated — no accounts or credentials are committed.
    `http://localhost:5173/auth/callback` to the Auth redirect allow-list.
 2. **Local env.** `cp .env.example .env` and fill in `VITE_SUPABASE_URL` and
    `VITE_SUPABASE_PUBLISHABLE_KEY` (the `sb_publishable_…` key — never the secret one).
-3. **Cloudflare Pages projects.** Create two *direct upload* projects (no Git
-   integration; Wrangler pushes the built files). Their names go in `.env` as
-   `DESKTOP_PAGES_PROJECT` / `MOBILE_PAGES_PROJECT`.
+3. **Cloudflare Pages project.** Create one *direct upload* project (no Git
+   integration; Wrangler pushes the built files). Its name goes in `.env` as
+   `PAGES_PROJECT`.
 4. **Cloudflare auth.** `npx wrangler login` once, or export `CLOUDFLARE_API_TOKEN`
    (Pages → Edit permission) for CI.
 5. **First deploy.** `task deploy`.
-6. **Back to Supabase.** Add the two live Pages URLs (and any custom domains) to the
-   Auth redirect allow-list, and set the desktop origin as the Site URL.
+6. **Back to Supabase.** Add the live Pages URL (and any custom domain) to the
+   Auth redirect allow-list, and set it as the Site URL.
 
 ## Routine deploy
 
 ```sh
-task deploy            # build + deploy both
-task deploy:desktop    # or just one
-task deploy:mobile
+task deploy            # build + deploy
 ```
 
-Each target rebuilds first, so the deployed bundle always matches the current `.env`
-and working tree. To check a bundle before shipping it: `task preview`.
+The deploy rebuilds first, so the deployed bundle always matches the current `.env`
+and working tree. To check the bundle before shipping it: `task preview`.

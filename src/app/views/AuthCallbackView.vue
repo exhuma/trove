@@ -3,6 +3,9 @@ import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { authReady, useAuth } from '@core/auth'
 
+// The magic-link email sends the user here. supabase-js (detectSessionInUrl) parses
+// the token from the URL and establishes the session; we just wait for it and route
+// on. If no session materialises, the link was invalid or expired.
 const { session } = useAuth()
 const router = useRouter()
 const failed = ref(false)
@@ -19,6 +22,7 @@ onMounted(async () => {
       void router.replace('/')
     }
   })
+  // Give the client a moment to process the URL, then surface a failure.
   setTimeout(() => {
     if (!session.value) {
       stop()
@@ -40,7 +44,7 @@ onMounted(async () => {
     <div v-else class="max-w-sm">
       <p class="text-sm text-ink">That sign-in link didn’t work — it may have expired.</p>
       <button
-        class="mt-4 rounded-xl bg-violet px-4 py-3 text-base font-medium text-ink hover:bg-violet-bright"
+        class="mt-4 rounded-xl bg-violet px-4 py-3 text-base font-medium text-ink hover:bg-violet-bright sm:rounded-lg sm:py-2 sm:text-sm"
         @click="router.replace('/login')"
       >
         Back to sign in

@@ -6,7 +6,7 @@
 // the violet carpet and booth headers, and the burnt-amber "Art of Magic"
 // banner.
 export default {
-  content: ['./index.html', './src/**/*.{vue,ts}'],
+  content: ['./src/**/*.{vue,ts,html}'],
   theme: {
     extend: {
       colors: {
