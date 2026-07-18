@@ -1,15 +1,5 @@
-export interface CardResult {
-  id: string
-  name: string
-  setName: string
-  /** Full card image — never an art crop, which would need separate credits. */
-  imageUrl: string
-}
-
-export type SearchOutcome =
-  | { status: 'results'; cards: CardResult[] }
-  | { status: 'empty' }
-  | { status: 'error'; message: string }
+import { toStorableBlob } from '../image'
+import type { CatalogResult, CatalogSearchOutcome, CatalogSource } from './types'
 
 /**
  * Scryfall limits /cards/search to 2 requests per second and treats a 429 as a
@@ -30,7 +20,7 @@ function imageOf(card: ScryfallCard): string | undefined {
   return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal
 }
 
-export async function searchCards(query: string, signal: AbortSignal): Promise<SearchOutcome> {
+async function searchCards(query: string, signal: AbortSignal): Promise<CatalogSearchOutcome> {
   // unique=art returns one entry per distinct artwork rather than collapsing a
   // card to a single printing, so the user can pick the exact art they want.
   const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}&unique=art`
@@ -59,20 +49,20 @@ export async function searchCards(query: string, signal: AbortSignal): Promise<S
   }
 
   const body = (await res.json()) as { data?: ScryfallCard[] }
-  const cards = (body.data ?? [])
-    .flatMap((card) => {
+  const results = (body.data ?? [])
+    .flatMap<CatalogResult>((card) => {
       const imageUrl = imageOf(card)
-      return imageUrl ? [{ id: card.id, name: card.name, setName: card.set_name, imageUrl }] : []
+      return imageUrl ? [{ id: card.id, name: card.name, subtitle: card.set_name, imageUrl }] : []
     })
     // A generous cap because a single popular card can have many distinct
     // printings, and the user is now choosing between them.
     .slice(0, 24)
 
-  return cards.length ? { status: 'results', cards } : { status: 'empty' }
+  return results.length ? { status: 'results', results } : { status: 'empty' }
 }
 
 /** Fetches a chosen card's image as a Blob, ready to downscale and store. */
-export async function fetchCardImage(url: string, signal: AbortSignal): Promise<Blob> {
+async function fetchCardImage(url: string, signal: AbortSignal): Promise<Blob> {
   // Scryfall's image CDN answers with `Access-Control-Allow-Origin: *` — but only
   // when the cached entry was created by a request that carried an Origin. A prior
   // non-CORS hit (a crawler, a prefetch) can poison the cache with a header-less
@@ -82,4 +72,18 @@ export async function fetchCardImage(url: string, signal: AbortSignal): Promise<
   const res = await fetch(busted, { signal, mode: 'cors' })
   if (!res.ok) throw new Error(`Could not download that card image (${res.status}).`)
   return res.blob()
+}
+
+/** The Scryfall catalogue source: search MTG single cards, add a chosen printing's art. */
+export const scryfallSource: CatalogSource = {
+  key: 'scryfall',
+  label: 'Cards',
+  searchLabel: 'Search Scryfall',
+  placeholder: 'Lightning Bolt',
+  hint: 'Needs a connection. The picture is stored in your account once you pick a card.',
+  fetchingLabel: 'Fetching the card image…',
+  emptyLabel: 'No cards match that name.',
+  debounceMs: SEARCH_DEBOUNCE_MS,
+  search: searchCards,
+  fetchImage: async (result, signal) => toStorableBlob(await fetchCardImage(result.imageUrl, signal)),
 }

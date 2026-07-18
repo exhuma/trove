@@ -11,6 +11,13 @@
       Card images and set symbols via
       <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer" class="underline hover:text-ink-muted">
         Scryfall</a
+      >; sealed-product data via
+      <a
+        href="https://github.com/taw/magic-sealed-data"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="underline hover:text-ink-muted"
+        >magic-sealed-data</a
       >. Demo app — your collection is stored in your account.
     </p>
   </footer>

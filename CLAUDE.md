@@ -8,8 +8,9 @@ see [`docs/architecture.md`](./docs/architecture.md).
 A personal **collection tracker** (Vue 3 + TS PWA, Vite, Tailwind, Supabase).
 Users create **sets** and fill them with **collectibles**, tracking copies
 **owned** vs a **target** (a Magic playset is 4). A **Needs** view lists what's
-still short. It's MTG-themed (add a card by searching Scryfall) but the domain is
-modelled generically — *set* / *collectible*, never *card* / *deck*.
+still short. It's MTG-themed — add a card by searching Scryfall, or a **booster /
+sealed product** from the vendored catalogue — but the domain is modelled
+generically — *set* / *collectible*, never *card* / *deck*.
 
 ## Commands
 
@@ -36,6 +37,12 @@ production build).
 - **`src/core/`** — framework-light shared layer: domain types, data access,
   auth, external APIs, business logic in composables, a few shared components.
   Import it via the **`@core`** alias, never relative `../../core`.
+  - **`src/core/catalog/`** — the pluggable **catalogue-source** seam. Each source
+    (Scryfall cards, boosters) implements `CatalogSource`; add one to
+    `CATALOG_SOURCES` and a new tab appears in the add-collectible dialog. The
+    booster source searches `src/core/data/boosters.json` (vendored, offline), then
+    its optional `refine` step offers the set's card arts (a booster's art is a
+    card variant) in collector order — with the set symbol as a fallback.
 - **`src/app/`** — the Vue UI shell (Vite `root`): `index.html`, `main.ts`,
   `router.ts`, `App.vue`, `views/`, `components/`, `public/`.
 - **`supabase/`** — `schema.sql`, `policies.sql` (run once, by hand).
@@ -62,8 +69,14 @@ module map.
 
 ## Gotchas (don't "fix" these — see `docs/architecture.md` for the why)
 
-- **Scryfall CORS cache-buster** (`scryfall.ts`): the `?cors=<ts>` param dodges a
-  poisoned CDN cache entry. Don't remove it.
+- **Scryfall CORS cache-buster** (`catalog/scryfall.ts`, `catalog/boosters.ts`):
+  the `?cors=<ts>` param dodges a poisoned CDN cache entry. Don't remove it.
+- **Booster catalogue is vendored, not live** (`src/core/data/boosters.json`,
+  built by `scripts/build-booster-catalog.mjs` = `npm run build:boosters`). Search
+  is offline and in-memory; regenerate when new sets release. Don't fetch it live.
+- **Set symbols are rasterised onto a light "coin"** (`image.ts svgToStorableBlob`):
+  Scryfall's symbol SVGs are black and would vanish on the dark tiles, and
+  `createImageBitmap` is unreliable for SVG — hence the `<img>`-to-canvas path.
 - **Deletes never remove Storage objects** — only DB rows. Undo relies on the
   object surviving.
 - **`exact-active-class`, not `active-class`** on RouterLinks (`/` prefixes every

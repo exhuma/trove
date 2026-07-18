@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import BaseOverlay from './BaseOverlay.vue'
-import ScryfallSearch from '@core/components/ScryfallSearch.vue'
-import { fileToStorableBlob, toStorableBlob } from '@core/image'
-import { fetchCardImage, type CardResult } from '@core/scryfall'
+import CatalogSearch from '@core/components/CatalogSearch.vue'
+import CatalogResultGrid from '@core/components/CatalogResultGrid.vue'
+import { fileToStorableBlob } from '@core/image'
+import { CATALOG_SOURCES, type CatalogResult } from '@core/catalog'
 
 const props = defineProps<{ setName: string; error?: string }>()
 const emit = defineEmits<{
@@ -12,8 +13,15 @@ const emit = defineEmits<{
   close: []
 }>()
 
-type Tab = 'upload' | 'search'
-const tab = ref<Tab>('upload')
+// The first tab uploads a picture; the rest are catalogue sources (Cards,
+// Boosters, …), so adding a source in `@core/catalog` grows this bar for free.
+const UPLOAD = 'upload'
+const tabs = [
+  { key: UPLOAD, label: 'Upload' },
+  ...CATALOG_SOURCES.map((source) => ({ key: source.key, label: source.label })),
+]
+const tab = ref<string>(UPLOAD)
+const activeSource = computed(() => CATALOG_SOURCES.find((source) => source.key === tab.value))
 
 const name = ref('')
 // The chosen picture is held as a Blob (uploaded to Storage on submit); an object URL
@@ -26,6 +34,17 @@ const busy = ref(false)
 // inert on touch, where the file input (with camera capture) does the job.
 const dragging = ref(false)
 
+// A source may refine a picked result into a further choice of images (boosters →
+// the set's card arts). While a refinement is open the picker shows that choice
+// instead of the search box.
+const refinement = ref<{
+  product: CatalogResult
+  status: 'loading' | 'ready' | 'error'
+  results: CatalogResult[]
+  message: string
+} | null>(null)
+let refineCtrl: AbortController | undefined
+
 function setImage(blob: Blob) {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   imageBlob.value = blob
@@ -33,6 +52,7 @@ function setImage(blob: Blob) {
 }
 
 onBeforeUnmount(() => {
+  refineCtrl?.abort()
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 
@@ -57,19 +77,55 @@ function onDrop(event: DragEvent) {
   void acceptFile(event.dataTransfer?.files[0])
 }
 
-async function pickCard(card: CardResult) {
+// A search pick either opens the art chooser (sources with `refine`, i.e.
+// boosters) or commits straight to an image (Scryfall cards).
+async function onSearchPick(result: CatalogResult) {
+  const source = activeSource.value
+  if (!source) return
+  if (!source.refine) return commitPick(result, result.name)
+
+  refineCtrl?.abort()
+  const controller = new AbortController()
+  refineCtrl = controller
+  refinement.value = { product: result, status: 'loading', results: [], message: '' }
+  try {
+    const outcome = await source.refine(result, controller.signal)
+    if (controller.signal.aborted) return
+    refinement.value =
+      outcome.status === 'results'
+        ? { product: result, status: 'ready', results: outcome.results, message: '' }
+        : outcome.status === 'empty'
+          ? { product: result, status: 'ready', results: [], message: '' }
+          : { product: result, status: 'error', results: [], message: outcome.message }
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return
+    refinement.value = { product: result, status: 'error', results: [], message: (err as Error).message }
+  }
+}
+
+// Fetch a chosen image and drop back to the form to confirm. The collectible keeps
+// the booster's name (the refined pick is only its picture), or the pick's own name.
+async function commitPick(pick: CatalogResult, collectibleName: string) {
+  const source = activeSource.value
+  if (!source) return
   localError.value = ''
   busy.value = true
   try {
-    const blob = await fetchCardImage(card.imageUrl, new AbortController().signal)
-    setImage(await toStorableBlob(blob))
-    name.value = card.name
-    tab.value = 'upload' // Falls back to the form so the pick can be confirmed.
+    setImage(await source.fetchImage(pick, new AbortController().signal))
+    name.value = collectibleName
+    refinement.value = null
+    tab.value = UPLOAD
   } catch (err) {
     localError.value = (err as Error).message
   } finally {
     busy.value = false
   }
+}
+
+function cancelRefine() {
+  refineCtrl?.abort()
+  refinement.value = null
+  localError.value = ''
 }
 
 function submit() {
@@ -84,27 +140,75 @@ function submit() {
   <BaseOverlay :title="`Add to ${props.setName}`" @close="emit('close')">
     <div class="mb-4 flex gap-1 rounded-lg bg-hall p-1" role="tablist">
       <button
-        v-for="option in (['upload', 'search'] as Tab[])"
-        :key="option"
+        v-for="option in tabs"
+        :key="option.key"
         role="tab"
-        :aria-selected="tab === option"
+        :aria-selected="tab === option.key"
         class="min-h-11 flex-1 rounded-md px-3 text-sm font-medium motion-safe:transition sm:min-h-0 sm:py-1.5"
-        :class="tab === option ? 'bg-violet text-ink' : 'text-ink-muted hover:text-ink'"
-        @click="tab = option"
+        :class="tab === option.key ? 'bg-violet text-ink' : 'text-ink-muted hover:text-ink'"
+        @click="tab = option.key"
       >
-        {{ option === 'upload' ? 'Upload a picture' : 'Search Scryfall' }}
+        {{ option.label }}
       </button>
     </div>
 
-    <template v-if="tab === 'search'">
-      <ScryfallSearch
-        @pick="pickCard"
-        @zoom="(card) => emit('zoom', { src: card.imageUrl, alt: card.name })"
+    <template v-if="activeSource">
+      <!-- Step 2: choose the artwork for a picked booster (its set's card arts, in
+           collector order, plus the set symbol). -->
+      <template v-if="refinement">
+        <button
+          type="button"
+          class="mb-2 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink"
+          @click="cancelRefine"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M10 3L5 8l5 5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Back to search
+        </button>
+        <p class="mb-3 text-sm font-medium text-ink">{{ refinement.product.name }}</p>
+        <p class="mb-3 text-xs text-ink-faint">
+          Pick the artwork — any card from this set, or its set symbol. No connection or
+          no match? Use the symbol, or upload your own picture.
+        </p>
+
+        <div
+          v-if="refinement.status === 'loading'"
+          class="flex items-center justify-center gap-2 py-8 text-sm text-ink-muted"
+        >
+          <svg class="h-4 w-4 motion-safe:animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="8" cy="8" r="6" class="opacity-25" />
+            <path d="M14 8a6 6 0 00-6-6" stroke-linecap="round" />
+          </svg>
+          Loading artwork…
+        </div>
+        <div
+          v-else-if="refinement.status === 'error'"
+          class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-3"
+        >
+          <p class="text-sm text-ink">{{ refinement.message }}</p>
+        </div>
+        <CatalogResultGrid
+          v-else
+          :results="refinement.results"
+          @pick="(art) => commitPick(art, refinement!.product.name)"
+          @zoom="(art) => emit('zoom', { src: art.imageUrl, alt: art.name })"
+        />
+      </template>
+
+      <!-- Step 1: search the source. -->
+      <CatalogSearch
+        v-else
+        :key="activeSource.key"
+        :source="activeSource"
+        @pick="onSearchPick"
+        @zoom="(result) => emit('zoom', { src: result.imageUrl, alt: result.name })"
       />
-      <!-- Picking a card downloads its art; if that fails the error must show
-           here, on the search tab, or the pick looks like it silently did
-           nothing (there is no submit button on this tab to carry it). -->
-      <p v-if="busy" class="mt-3 text-xs text-ink-muted">Fetching the card image…</p>
+
+      <!-- Picking downloads an image; if that fails the error must show here, on
+           the search tab, or the pick looks like it silently did nothing (there is
+           no submit button on this tab to carry it). -->
+      <p v-if="busy" class="mt-3 text-xs text-ink-muted">{{ activeSource.fetchingLabel }}</p>
       <p v-else-if="localError" class="mt-3 text-xs text-danger">{{ localError }}</p>
     </template>
 

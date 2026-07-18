@@ -75,7 +75,7 @@ const progress = computed(() => progressOf(props.set))
     <EmptyState
       v-if="!set.collectibles.length"
       title="No collectibles yet"
-      hint="Add one from a picture on your device, or search Scryfall for a card."
+      hint="Add one from a picture on your device, or search for a card or booster."
     >
       <button
         class="rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright"

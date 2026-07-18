@@ -19,6 +19,15 @@ Two views do the work. **Collection** shows your sets and, drilled in, one set's
 collectibles with progress. **Needs** lists what you are still short of, so you
 know what to hunt for.
 
+You add a collectible three ways: upload a picture, search **Scryfall** for a card
+printing, or search the **booster** catalogue (MTG sealed products). These are
+`CatalogSource`s (`src/core/catalog/`) — the seam that keeps the domain generic
+while the acquisition paths stay MTG-flavoured. Boosters have no Scryfall-style API
+that serves artwork, so the catalogue is a **vendored MTGJSON/`magic-sealed-data`
+list** searched offline; picking a booster then opens a **second step** to choose
+its picture from that set's card arts (a booster's art is always a card variant),
+in collector-number order, with the set symbol as a quick fallback.
+
 > **Deliberately not present (yet).** No decks, no card metadata (mana cost,
 > colour, rarity, price), no bulk import, no sharing. The `sets.visibility`
 > column reserves room for public sharing later, but nothing is wired to it.
@@ -54,17 +63,22 @@ src/
     config.ts               # reads VITE_ env; fails loud if missing
     supabase.ts             # the one Supabase client + IMAGE_BUCKET
     auth.ts                 # auth composable + session singleton + authReady
-    scryfall.ts             # Scryfall search + image fetch
-    image.ts                # downscale + WebP re-encode before upload
+    image.ts                # downscale + WebP re-encode; set-symbol rasteriser
     dev-backend.ts          # useMemoryBackend flag (DEV-only)
     style.css               # Tailwind entry / global styles
-    data/                   # persistence (repository pattern)
+    catalog/                # pluggable "add a collectible" sources (the seam)
+      types.ts              #   CatalogSource / CatalogResult / SearchOutcome
+      scryfall.ts           #   MTG cards — live Scryfall search + image fetch
+      boosters.ts           #   MTG sealed products — offline search over vendored JSON
+      index.ts              #   CATALOG_SOURCES registry (tab order)
+    data/                   # persistence (repository pattern) + vendored data
       repository.ts         #   the CollectionRepository interface — the seam
       supabase-repository.ts#   production implementation
       memory-repository.ts  #   dev-only in-memory implementation
       index.ts              #   picks the impl from useMemoryBackend → `repo`
+      boosters.json         #   vendored sealed-product catalogue (generated)
     composables/            # useCollection, useNeeds, useToast, useModalA11y
-    components/             # ScryfallSearch, TroveMark, TroveWordmark
+    components/             # CatalogSearch + CatalogResultGrid, TroveMark, TroveWordmark
   app/                      # the Vue UI shell — Vite `root` lives here
     index.html  main.ts  router.ts  App.vue
     views/                  # CollectionView, NeedsView, LoginView, AuthCallbackView
@@ -128,8 +142,11 @@ has an inline rationale. This table points you at the right one.
 | `core/composables/useToast.ts` | Global toast queue; toasts carry an optional `undo` action — this is the undo UI. |
 | `core/composables/useModalA11y.ts` | Escape-close, Tab focus-trap, focus restore; `capture` option for stacked modals. |
 | `core/auth.ts` | Supabase email/password + magic-link; session singleton; the `authReady` promise the router awaits. |
-| `core/scryfall.ts` | Scryfall client: `searchCards` (`unique=art`, debounced, abortable) and `fetchCardImage` (CORS cache-buster). |
-| `core/image.ts` | `toStorableBlob` / `fileToStorableBlob`: downscale to ≤512px edge, WebP q0.82, never crop. |
+| `core/catalog/types.ts` | The `CatalogSource` seam: a searchable "add" source (search + fetch-a-storable-image) with its own UI copy. `CatalogResult` / `CatalogSearchOutcome`. |
+| `core/catalog/scryfall.ts` | Scryfall source: `searchCards` (`unique=art`, debounced, abortable) + `fetchCardImage` (CORS cache-buster). |
+| `core/catalog/boosters.ts` | Booster source: offline search over vendored `boosters.json`; `refine` offers the set's card arts (collector order, live Scryfall) + the set symbol; `fetchImage` handles both raster art and the SVG symbol. |
+| `core/catalog/index.ts` | `CATALOG_SOURCES` — the ordered source registry the add dialog renders one tab per. |
+| `core/image.ts` | `toStorableBlob` / `fileToStorableBlob`: downscale to ≤512px edge, WebP q0.82, never crop. `svgToStorableBlob`: rasterise a set symbol onto a light coin. |
 | `core/config.ts` | Reads `VITE_`-prefixed build-time env; `required()` throws loudly at boot on a missing var. |
 | `core/dev-backend.ts` | `useMemoryBackend = import.meta.env.DEV && VITE_BACKEND === 'memory'`. |
 | `app/App.vue` | The shell: watches the session to load the collection on sign-in and reset + redirect to `/login` on sign-out. Header, error banner, add-set dialog, toasts. |
@@ -159,12 +176,19 @@ Brief end-to-end traces; each names the files it touches.
 - **Sign in → load.** `LoginView` → session set → `App.vue` watch fires
   `loadForUser()` → `repo.listSets()` (query + batch-sign URLs) → collection
   populated → redirect to `/`.
-- **Add a collectible.** `AddCollectibleOverlay` has two tabs. *Upload:*
-  file/drag/camera → `fileToStorableBlob` (WebP ≤512px). *Scryfall:*
-  `ScryfallSearch` → `searchCards(…&unique=art)` → pick art → `fetchCardImage`
-  → `toStorableBlob`. Either way → `useCollection.addCollectible` shows an
-  instant object-URL preview, uploads to `<uid>/<uuid>.webp`, inserts the row,
-  swaps preview for the signed URL (rolls back + revokes URL on failure).
+- **Add a collectible.** `AddCollectibleOverlay` renders one tab per source:
+  *Upload* (file/drag/camera → `fileToStorableBlob`) plus a tab per
+  `CATALOG_SOURCES` entry. Each catalogue tab is a `CatalogSearch` bound to that
+  `CatalogSource`. A search pick either commits straight to an image (Scryfall
+  cards) or, if the source has `refine`, opens a **second step** first: boosters
+  refine into the set's card arts (collector-number order, via a live Scryfall
+  per-set query) plus the set symbol as a fallback, rendered with the shared
+  `CatalogResultGrid`. The final pick calls `source.fetchImage(result)`, which
+  returns an already-storable WebP (card art → `toStorableBlob`; set symbol →
+  `svgToStorableBlob`), and the collectible keeps the *booster's* name. Either way
+  → `useCollection.addCollectible` shows an instant object-URL preview, uploads to
+  `<uid>/<uuid>.webp`, inserts the row, swaps preview for the signed URL (rolls
+  back + revokes URL on failure).
 - **Track copies.** `OwnedStepper` emits an absolute count →
   `setOwnedCount`/`setTarget` mutate in memory immediately, then a 400ms
   debounced write; a failed persist toasts and resyncs via `loadForUser()`.
@@ -205,11 +229,24 @@ Brief end-to-end traces; each names the files it touches.
 Each of these has a comment in the code explaining the *why*; don't "clean them
 up" without reading it.
 
-- **Scryfall CORS cache-buster** (`scryfall.ts fetchCardImage`). The image CDN
-  sends `Access-Control-Allow-Origin: *` only when the cached entry was first
-  created by a request carrying an `Origin`; a prior non-CORS hit can poison the
-  cache with a header-less copy that blocks the browser fetch. The `?cors=<ts>`
-  param dodges the poisoned entry. **Do not remove it.**
+- **Scryfall CORS cache-buster** (`catalog/scryfall.ts fetchCardImage`, and the
+  same trick in `catalog/boosters.ts fetchSymbol`). The image CDN sends
+  `Access-Control-Allow-Origin: *` only when the cached entry was first created by
+  a request carrying an `Origin`; a prior non-CORS hit can poison the cache with a
+  header-less copy that blocks the browser fetch. The `?cors=<ts>` param dodges the
+  poisoned entry. **Do not remove it.**
+- **Booster catalogue is vendored + generated, not live.**
+  `src/core/data/boosters.json` is built by `scripts/build-booster-catalog.mjs`
+  (`npm run build:boosters`), which joins `taw/magic-sealed-data` (the product
+  list) with Scryfall `/sets` (the symbol). It's near-static reference data;
+  search runs offline and in-memory. Regenerate it when a new set releases — it
+  won't update itself. Products whose set has no Scryfall symbol are dropped.
+- **Set symbols become images via a dedicated rasteriser**
+  (`image.ts svgToStorableBlob`). Scryfall's symbol SVGs render black — invisible
+  on the dark tiles — so the glyph is drawn onto a light "coin" (its fill pulled
+  from the `ink` token at runtime, so no hex leaks into `src/`). It can't reuse
+  `toStorableBlob` because `createImageBitmap`'s SVG support is unreliable; an
+  `<img>`→canvas load is the portable path.
 - **Deletes never remove Storage objects** — only DB rows. Undo re-inserts rows
   pointing at the surviving object, reusing original ids, which keeps it cheap
   and reliable. Don't add cascade deletes to Storage.
