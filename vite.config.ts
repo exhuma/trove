@@ -63,10 +63,15 @@ export default defineConfig({
     // load offline. Scope is app-shell only: the UI is precached, but live data
     // (Supabase auth + collection, Scryfall) is left to the network on purpose.
     VitePWA({
-      registerType: 'autoUpdate',
-      // Auto-inject the SW registration so no source module imports
-      // 'virtual:pwa-register' — keeps the vue-tsc typecheck free of PWA wiring.
-      injectRegister: 'auto',
+      // Prompt, not autoUpdate: a silently-swapped SW left the open page on the old
+      // bundle until some later reload happened to catch it, which read as a stale
+      // cache. Now UpdateBanner (via useRegisterSW) surfaces a waiting update and the
+      // user opts in — no background page reloads, no polling.
+      registerType: 'prompt',
+      // We register the SW ourselves through `virtual:pwa-register/vue` in
+      // UpdateBanner.vue, so disable auto-injection to avoid a double registration.
+      // `src/globals.d.ts` references the plugin's client types to keep vue-tsc clean.
+      injectRegister: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
         // SPA fallback for client-side routes, mirroring dist/_redirects.

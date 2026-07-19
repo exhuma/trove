@@ -263,10 +263,14 @@ up" without reading it.
 - **`exact-active-class`, not `active-class`** on RouterLinks (`AppHeader`,
   `NavSwitcher`): `/` prefixes every route and would otherwise keep "Collection"
   lit on `/needs`.
-- **PWA `injectRegister: 'auto'`** (`vite.config.ts`) so no source imports
-  `virtual:pwa-register` — that keeps `vue-tsc` clean of PWA types. The service
-  worker precaches the app *shell* only; live data (Supabase, Scryfall) is left
-  to the network by design.
+- **PWA `registerType: 'prompt'`** (`vite.config.ts`) with a manual registration
+  via `virtual:pwa-register/vue` in `UpdateBanner.vue` (`injectRegister: false` so
+  it isn't registered twice; `src/globals.d.ts` references the plugin's client types
+  to keep `vue-tsc` clean). A waiting update surfaces the banner instead of silently
+  swapping the SW — no background reloads, no polling. `src/app/public/_headers`
+  marks `sw.js` / `index.html` `no-cache` so an edge cache can't hide a new build.
+  The service worker precaches the app *shell* only; live data (Supabase, Scryfall)
+  is left to the network by design.
 - **Security is RLS, not key secrecy.** `VITE_SUPABASE_PUBLISHABLE_KEY` is public
   by design. **Never** put the secret/service-role key in any `VITE_` var — it
   would be inlined into the client bundle.
