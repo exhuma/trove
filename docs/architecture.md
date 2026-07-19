@@ -85,7 +85,7 @@ src/
     components/             # SetDetail, CollectibleTile, OwnedStepper, overlays, …
     composables/            # useAddSetPrompt (app-only)
     public/                 # favicon, PWA icons, _redirects
-supabase/                   # schema.sql, policies.sql, README.md (run once, by hand)
+supabase/                   # config.toml, migrations/, README.md (Supabase CLI, no local stack)
 ```
 
 ## Data model
@@ -112,7 +112,7 @@ interface CollectibleSet {
 database; `image` is a short-lived signed URL the repository produces at read
 time. Templates only ever bind `image`.
 
-Persistence is Supabase Postgres (`supabase/schema.sql`), **not**
+Persistence is Supabase Postgres (schema in `supabase/migrations/`), **not**
 localStorage/IndexedDB — the only things in localStorage are the Supabase auth
 token and the Needs view's sort/group prefs (`trove:needs-view`).
 
@@ -123,8 +123,8 @@ token and the Needs view's sort/group prefs (`trove:needs-view`).
 
 Images live in a **private** Storage bucket `collectible-images`
 (`src/core/supabase.ts`), objects keyed `<uid>/<uuid>.webp`, served via 1-hour
-signed URLs. `supabase/policies.sql` scopes every row and every Storage object
-to the owning user.
+signed URLs. The RLS policies in the migrations scope every row and every Storage
+object to the owning user.
 
 ## Core modules — the map
 

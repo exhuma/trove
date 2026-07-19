@@ -33,3 +33,22 @@ tasks:
       # Requires `wrangler login` once, or CLOUDFLARE_API_TOKEN in the env.
       # $PAGES_PROJECT is set in .env (see .env.example).
       - npx wrangler pages deploy dist --project-name "$PAGES_PROJECT"
+
+  # ── Database (Supabase CLI) ─────────────────────────────────────────────────
+  # Schema lives in supabase/migrations/ and is applied to the live project with
+  # `task db:push`. No local Docker stack — run `supabase link` once, then push.
+  # Deploy never touches the DB. See supabase/README.md.
+  db:new:
+    desc: 'Scaffold a new migration: task db:new -- <name>'
+    cmds:
+      - npx supabase migration new {{.CLI_ARGS}}
+
+  db:push:
+    desc: Apply pending migrations to the linked live project (run `supabase link` first)
+    cmds:
+      - npx supabase db push
+
+  db:status:
+    desc: List local vs remote migration history (needs `supabase link`)
+    cmds:
+      - npx supabase migration list --linked

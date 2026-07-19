@@ -41,8 +41,10 @@ survive a hard refresh.
 Nothing below is automated — no accounts or credentials are committed.
 
 1. **Supabase project.** Create one, then follow [`supabase/README.md`](../supabase/README.md):
-   run `schema.sql` and `policies.sql`, and add every app origin plus
-   `http://localhost:5173/auth/callback` to the Auth redirect allow-list.
+   link the Supabase CLI (`supabase link`), push the migrations (`task db:push`)
+   — or, since this project predates migrations, mark the baseline applied per the
+   README — and add every app origin plus `http://localhost:5173/auth/callback` to
+   the Auth redirect allow-list.
 2. **Local env.** `cp .env.example .env` and fill in `VITE_SUPABASE_URL` and
    `VITE_SUPABASE_PUBLISHABLE_KEY` (the `sb_publishable_…` key — never the secret one).
 3. **Cloudflare Pages project.** Create one *direct upload* project (no Git
