@@ -1,11 +1,11 @@
-import { toStorableBlob } from '../image'
-import type { CatalogResult, CatalogSearchOutcome, CatalogSource } from './types'
+import { toStorableBlob } from '../../image'
+import type { CatalogResult, CatalogSearchOutcome, CatalogSource } from '../types'
 
 /**
  * Scryfall limits /cards/search to 2 requests per second and treats a 429 as a
  * 30s lockout, so callers must debounce. 500ms matches their documented floor.
  */
-export const SEARCH_DEBOUNCE_MS = 500
+const SEARCH_DEBOUNCE_MS = 500
 
 interface ScryfallCard {
   id: string
@@ -74,8 +74,8 @@ async function fetchCardImage(url: string, signal: AbortSignal): Promise<Blob> {
   return res.blob()
 }
 
-/** The Scryfall catalogue source: search MTG single cards, add a chosen printing's art. */
-export const scryfallSource: CatalogSource = {
+/** The MTG single-card source: search Scryfall, add a chosen printing's full-card art. */
+export const mtgCardsSource: CatalogSource = {
   key: 'scryfall',
   label: 'Cards',
   searchLabel: 'Search Scryfall',

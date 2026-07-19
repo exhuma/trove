@@ -66,10 +66,10 @@ src/
     image.ts                # downscale + WebP re-encode; set-symbol rasteriser
     dev-backend.ts          # useMemoryBackend flag (DEV-only)
     style.css               # Tailwind entry / global styles
-    catalog/                # pluggable "add a collectible" sources (the seam)
-      types.ts              #   CatalogSource / CatalogResult / SearchOutcome
-      scryfall.ts           #   MTG cards — live Scryfall search + image fetch
-      boosters.ts           #   MTG sealed products — offline search over vendored JSON
+    catalog/                # pluggable collectible-type sources (the seam)
+      types.ts              #   CatalogSource / CatalogRefineStep / CatalogResult / SearchOutcome
+      mtg-cards/            #   MTG cards — live Scryfall search + image fetch
+      mtg-boosters/         #   MTG sealed products — offline search + searchable art refine
       index.ts              #   CATALOG_SOURCES registry (tab order)
     data/                   # persistence (repository pattern) + vendored data
       repository.ts         #   the CollectionRepository interface — the seam
@@ -78,7 +78,7 @@ src/
       index.ts              #   picks the impl from useMemoryBackend → `repo`
       boosters.json         #   vendored sealed-product catalogue (generated)
     composables/            # useCollection, useNeeds, useToast, useModalA11y
-    components/             # CatalogSearch + CatalogResultGrid, TroveMark, TroveWordmark
+    components/             # CatalogFlow + CatalogStep + CatalogResultGrid, TroveMark, TroveWordmark
   app/                      # the Vue UI shell — Vite `root` lives here
     index.html  main.ts  router.ts  App.vue
     views/                  # CollectionView, NeedsView, LoginView, AuthCallbackView
@@ -142,9 +142,9 @@ has an inline rationale. This table points you at the right one.
 | `core/composables/useToast.ts` | Global toast queue; toasts carry an optional `undo` action — this is the undo UI. |
 | `core/composables/useModalA11y.ts` | Escape-close, Tab focus-trap, focus restore; `capture` option for stacked modals. |
 | `core/auth.ts` | Supabase email/password + magic-link; session singleton; the `authReady` promise the router awaits. |
-| `core/catalog/types.ts` | The `CatalogSource` seam: a searchable "add" source (search + fetch-a-storable-image) with its own UI copy. `CatalogResult` / `CatalogSearchOutcome`. |
-| `core/catalog/scryfall.ts` | Scryfall source: `searchCards` (`unique=art`, debounced, abortable) + `fetchCardImage` (CORS cache-buster). |
-| `core/catalog/boosters.ts` | Booster source: offline search over vendored `boosters.json`; `refine` offers the set's card arts (collector order, live Scryfall) + the set symbol; `fetchImage` handles both raster art and the SVG symbol. |
+| `core/catalog/types.ts` | The `CatalogSource` seam: a searchable "add" source (search + optional searchable `refine` step + fetch-a-storable-image) with its own UI copy. `CatalogResult` (with `label`/`fit` display hints) / `CatalogRefineStep` / `CatalogSearchOutcome`. |
+| `core/catalog/mtg-cards/` | MTG single-card source: `searchCards` (`unique=art`, debounced, abortable) + `fetchImage` (full-card `normal`, CORS cache-buster). |
+| `core/catalog/mtg-boosters/` | MTG booster source: offline search over vendored `boosters.json` (prefix-stripped `label`); searchable `refine` offers the set's card arts (`art_crop`, fetched once then filtered by card name in memory) + the set symbol; `fetchImage` crops art to the card aspect and rasterises the SVG symbol. |
 | `core/catalog/index.ts` | `CATALOG_SOURCES` — the ordered source registry the add dialog renders one tab per. |
 | `core/image.ts` | `toStorableBlob` / `fileToStorableBlob`: downscale to ≤512px edge, WebP q0.82, never crop. `svgToStorableBlob`: rasterise a set symbol onto a light coin. |
 | `core/config.ts` | Reads `VITE_`-prefixed build-time env; `required()` throws loudly at boot on a missing var. |
@@ -178,14 +178,16 @@ Brief end-to-end traces; each names the files it touches.
   populated → redirect to `/`.
 - **Add a collectible.** `AddCollectibleOverlay` renders one tab per source:
   *Upload* (file/drag/camera → `fileToStorableBlob`) plus a tab per
-  `CATALOG_SOURCES` entry. Each catalogue tab is a `CatalogSearch` bound to that
-  `CatalogSource`. A search pick either commits straight to an image (Scryfall
-  cards) or, if the source has `refine`, opens a **second step** first: boosters
-  refine into the set's card arts (collector-number order, via a live Scryfall
-  per-set query) plus the set symbol as a fallback, rendered with the shared
-  `CatalogResultGrid`. The final pick calls `source.fetchImage(result)`, which
-  returns an already-storable WebP (card art → `toStorableBlob`; set symbol →
-  `svgToStorableBlob`), and the collectible keeps the *booster's* name. Either way
+  `CATALOG_SOURCES` entry. Each catalogue tab is a `CatalogFlow` bound to that
+  `CatalogSource`; it drives the source's two-step flow using `CatalogStep` (a
+  reusable search-box + `CatalogResultGrid`) for each step. A search pick either
+  commits straight to an image (Scryfall cards) or, if the source has `refine`,
+  opens a **second searchable step** first: boosters refine into the set's card
+  arts (`art_crop`, fetched once then filtered by card name in memory) plus the set
+  symbol as a fallback. The final pick calls `source.fetchImage(result)`, which
+  returns an already-storable WebP (card art → `cropToCardBlob` for boosters /
+  `toStorableBlob` for full cards; set symbol → `svgToStorableBlob`), and the
+  collectible keeps the *booster's* name. Either way
   → `useCollection.addCollectible` shows an instant object-URL preview, uploads to
   `<uid>/<uuid>.webp`, inserts the row, swaps preview for the signed URL (rolls
   back + revokes URL on failure).
@@ -229,8 +231,8 @@ Brief end-to-end traces; each names the files it touches.
 Each of these has a comment in the code explaining the *why*; don't "clean them
 up" without reading it.
 
-- **Scryfall CORS cache-buster** (`catalog/scryfall.ts fetchCardImage`, and the
-  same trick in `catalog/boosters.ts fetchSymbol`). The image CDN sends
+- **Scryfall CORS cache-buster** (`catalog/mtg-cards/ fetchCardImage`, and the
+  same trick in `catalog/mtg-boosters/ fetchImage`). The image CDN sends
   `Access-Control-Allow-Origin: *` only when the cached entry was first created by
   a request carrying an `Origin`; a prior non-CORS hit can poison the cache with a
   header-less copy that blocks the browser fetch. The `?cors=<ts>` param dodges the

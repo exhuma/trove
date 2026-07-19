@@ -34,6 +34,53 @@ export async function toStorableBlob(source: Blob): Promise<Blob> {
   }
 }
 
+// The trading-card proportion tiles letterbox to (see `aspect-card` in
+// tailwind.config.js). A cropped art is reframed to this so it fills the tile.
+const CARD_ASPECT = 488 / 680
+
+/**
+ * Scales an image down and re-encodes it as WebP like `toStorableBlob`, but
+ * **centre-crops it to the card aspect** (cover fit) so it fills a portrait tile
+ * edge-to-edge instead of letterboxing.
+ *
+ * Unlike `toStorableBlob` this clips the source, so it's only for Scryfall's
+ * `art_crop` — the illustration alone, which carries no artist/copyright line to
+ * preserve. Full card scans must keep `toStorableBlob` (their credit line lives on
+ * the bottom edge, and Scryfall's image rules forbid clipping it).
+ */
+export async function cropToCardBlob(source: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(source)
+  try {
+    // The largest card-aspect rectangle that fits the source, centred (cover crop).
+    const srcAspect = bitmap.width / bitmap.height
+    const [sw, sh] =
+      srcAspect > CARD_ASPECT
+        ? [bitmap.height * CARD_ASPECT, bitmap.height] // source too wide: trim sides
+        : [bitmap.width, bitmap.width / CARD_ASPECT] // source too tall: trim top/bottom
+    const sx = (bitmap.width - sw) / 2
+    const sy = (bitmap.height - sh) / 2
+
+    const scale = Math.min(1, MAX_EDGE / Math.max(sw, sh))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(sw * scale)
+    canvas.height = Math.round(sh * scale)
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get a 2D canvas context')
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the image.'))),
+        'image/webp',
+        QUALITY,
+      )
+    })
+  } finally {
+    bitmap.close()
+  }
+}
+
 /** Rejects non-images early, so the failure names the real problem. */
 export async function fileToStorableBlob(file: File): Promise<Blob> {
   if (!file.type.startsWith('image/')) {

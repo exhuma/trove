@@ -1,9 +1,22 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import CatalogResultGrid from './CatalogResultGrid.vue'
-import type { CatalogResult, CatalogSource } from '@core/catalog'
+import type { CatalogResult, CatalogSearchOutcome } from '@core/catalog'
 
-const props = defineProps<{ source: CatalogSource }>()
+// One search/filter step: a labelled search box over a `run` function, with a
+// results grid. Drives both the first search and the searchable refine step.
+const props = defineProps<{
+  step: {
+    searchLabel: string
+    placeholder: string
+    hint: string
+    emptyLabel: string
+    debounceMs: number
+    // 0 auto-runs on mount (show all, filter as you type); >0 waits for N chars.
+    minQueryLength: number
+  }
+  run: (query: string, signal: AbortSignal) => Promise<CatalogSearchOutcome>
+}>()
 const emit = defineEmits<{ pick: [result: CatalogResult]; zoom: [result: CatalogResult] }>()
 
 type State =
@@ -26,15 +39,15 @@ function cancelPending() {
 }
 
 // Debounced and abortable: a live source (Scryfall) has a rate limit to respect,
-// and either way a newer keystroke should supersede an in-flight search. The
-// per-source `debounceMs` tunes how eagerly that fires.
+// and either way a newer keystroke should supersede an in-flight run. `immediate`
+// so a zero-minimum step (refine) loads its full list the moment it mounts.
 watch(
-  [query, () => props.source],
+  [query, () => props.run],
   ([value]) => {
     cancelPending()
     const trimmed = value.trim()
 
-    if (trimmed.length < 2) {
+    if (trimmed.length < props.step.minQueryLength) {
       state.value = { kind: 'idle' }
       return
     }
@@ -44,7 +57,7 @@ watch(
       const controller = new AbortController()
       inflight = controller
       try {
-        const outcome = await props.source.search(trimmed, controller.signal)
+        const outcome = await props.run(trimmed, controller.signal)
         if (controller.signal.aborted) return
         state.value =
           outcome.status === 'results'
@@ -56,18 +69,9 @@ watch(
         // The only throw that reaches here is an abort, which a newer keystroke
         // already superseded.
       }
-    }, props.source.debounceMs)
+    }, props.step.debounceMs)
   },
-  { flush: 'post' },
-)
-
-// Switching source resets the box, so stale results never carry across tabs.
-watch(
-  () => props.source,
-  () => {
-    query.value = ''
-    state.value = { kind: 'idle' }
-  },
+  { flush: 'post', immediate: true },
 )
 
 onBeforeUnmount(cancelPending)
@@ -75,16 +79,16 @@ onBeforeUnmount(cancelPending)
 
 <template>
   <div>
-    <label for="catalog-search" class="mb-1.5 block text-sm font-medium text-ink">{{ source.searchLabel }}</label>
+    <label for="catalog-search" class="mb-1.5 block text-sm font-medium text-ink">{{ step.searchLabel }}</label>
     <input
       id="catalog-search"
       v-model="query"
       type="search"
-      :placeholder="source.placeholder"
+      :placeholder="step.placeholder"
       autocomplete="off"
       class="w-full rounded-lg border border-hall-line bg-hall px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none"
     />
-    <p class="mt-1.5 text-xs text-ink-faint">{{ source.hint }}</p>
+    <p class="mt-1.5 text-xs text-ink-faint">{{ step.hint }}</p>
 
     <div class="mt-4 min-h-[8rem]" aria-live="polite">
       <p v-if="state.kind === 'idle'" class="py-8 text-center text-sm text-ink-faint">
@@ -100,7 +104,7 @@ onBeforeUnmount(cancelPending)
       </div>
 
       <p v-else-if="state.kind === 'empty'" class="py-8 text-center text-sm text-ink-muted">
-        {{ source.emptyLabel }}
+        {{ step.emptyLabel }}
       </p>
 
       <div v-else-if="state.kind === 'error'" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-3">

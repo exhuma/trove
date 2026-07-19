@@ -11,16 +11,25 @@ const emit = defineEmits<{ pick: [result: CatalogResult]; zoom: [result: Catalog
       <button
         class="w-full overflow-hidden rounded-lg border border-hall-line bg-hall-panel hover:border-violet motion-safe:transition"
         :aria-label="`Choose ${result.name} — ${result.subtitle}`"
+        :title="`${result.name} — ${result.subtitle}`"
         @click="emit('pick', result)"
       >
         <!-- Light cell so a letterboxed set symbol (drawn black) is visible; full-
-             bleed card arts cover it, so it only shows behind symbols. -->
+             bleed arts (fit: cover) cover it, so it only shows behind letterboxed
+             ones. Each result frames its own image (a card scan contains, a cropped
+             art covers). -->
         <div class="aspect-card w-full bg-ink">
-          <img :src="result.imageUrl" alt="" loading="lazy" class="h-full w-full object-contain" />
+          <img
+            :src="result.imageUrl"
+            alt=""
+            loading="lazy"
+            class="h-full w-full"
+            :class="result.fit === 'cover' ? 'object-cover' : 'object-contain'"
+          />
         </div>
-        <!-- The subtitle disambiguates results that share a name (every distinct
-             printing, every product of a set, or a card's collector number). -->
-        <span class="block truncate px-1.5 pt-1 text-left text-[10px] text-ink">{{ result.name }}</span>
+        <!-- `label` (falling back to the full name) leads; the subtitle disambiguates
+             results that share a name. The full name is in the button's title/aria. -->
+        <span class="block px-1.5 pt-1 text-left text-[10px] leading-tight text-ink [overflow-wrap:anywhere] line-clamp-2">{{ result.label ?? result.name }}</span>
         <span class="block truncate px-1.5 pb-1 text-left text-[10px] text-ink-faint">{{ result.subtitle }}</span>
       </button>
       <!-- Hover-reveal on pointer devices; always visible where there is no hover

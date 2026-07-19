@@ -37,12 +37,15 @@ production build).
 - **`src/core/`** — framework-light shared layer: domain types, data access,
   auth, external APIs, business logic in composables, a few shared components.
   Import it via the **`@core`** alias, never relative `../../core`.
-  - **`src/core/catalog/`** — the pluggable **catalogue-source** seam. Each source
-    (Scryfall cards, boosters) implements `CatalogSource`; add one to
-    `CATALOG_SOURCES` and a new tab appears in the add-collectible dialog. The
-    booster source searches `src/core/data/boosters.json` (vendored, offline), then
-    its optional `refine` step offers the set's card arts (a booster's art is a
-    card variant) in collector order — with the set symbol as a fallback.
+  - **`src/core/catalog/`** — the pluggable **collectible-type** seam. Each type
+    lives in its own folder (`mtg-cards/`, `mtg-boosters/`) owning its search,
+    deps, and display, and implements `CatalogSource`; add one to `CATALOG_SOURCES`
+    and a new tab appears in the add-collectible dialog. A source can define a
+    second **searchable** `refine` step (`CatalogRefineStep`): the booster source
+    searches `src/core/data/boosters.json` (vendored, offline), then its `refine`
+    step offers the set's card arts (a booster's art is a card variant), filterable
+    by card name, with the set symbol as a fallback. Results carry optional display
+    hints (`label`, `fit`) the generic picker grid honours.
 - **`src/app/`** — the Vue UI shell (Vite `root`): `index.html`, `main.ts`,
   `router.ts`, `App.vue`, `views/`, `components/`, `public/`.
 - **`supabase/`** — versioned schema as Supabase CLI migrations (`config.toml`,
@@ -71,7 +74,7 @@ module map.
 
 ## Gotchas (don't "fix" these — see `docs/architecture.md` for the why)
 
-- **Scryfall CORS cache-buster** (`catalog/scryfall.ts`, `catalog/boosters.ts`):
+- **Scryfall CORS cache-buster** (`catalog/mtg-cards/`, `catalog/mtg-boosters/`):
   the `?cors=<ts>` param dodges a poisoned CDN cache entry. Don't remove it.
 - **Booster catalogue is vendored, not live** (`src/core/data/boosters.json`,
   built by `scripts/build-booster-catalog.mjs` = `npm run build:boosters`). Search

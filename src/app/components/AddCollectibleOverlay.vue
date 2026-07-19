@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import BaseOverlay from './BaseOverlay.vue'
-import CatalogSearch from '@core/components/CatalogSearch.vue'
-import CatalogResultGrid from '@core/components/CatalogResultGrid.vue'
+import CatalogFlow from '@core/components/CatalogFlow.vue'
 import { fileToStorableBlob } from '@core/image'
 import { CATALOG_SOURCES, type CatalogResult } from '@core/catalog'
 
@@ -34,17 +33,6 @@ const busy = ref(false)
 // inert on touch, where the file input (with camera capture) does the job.
 const dragging = ref(false)
 
-// A source may refine a picked result into a further choice of images (boosters →
-// the set's card arts). While a refinement is open the picker shows that choice
-// instead of the search box.
-const refinement = ref<{
-  product: CatalogResult
-  status: 'loading' | 'ready' | 'error'
-  results: CatalogResult[]
-  message: string
-} | null>(null)
-let refineCtrl: AbortController | undefined
-
 function setImage(blob: Blob) {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   imageBlob.value = blob
@@ -52,7 +40,6 @@ function setImage(blob: Blob) {
 }
 
 onBeforeUnmount(() => {
-  refineCtrl?.abort()
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 
@@ -77,55 +64,23 @@ function onDrop(event: DragEvent) {
   void acceptFile(event.dataTransfer?.files[0])
 }
 
-// A search pick either opens the art chooser (sources with `refine`, i.e.
-// boosters) or commits straight to an image (Scryfall cards).
-async function onSearchPick(result: CatalogResult) {
-  const source = activeSource.value
-  if (!source) return
-  if (!source.refine) return commitPick(result, result.name)
-
-  refineCtrl?.abort()
-  const controller = new AbortController()
-  refineCtrl = controller
-  refinement.value = { product: result, status: 'loading', results: [], message: '' }
-  try {
-    const outcome = await source.refine(result, controller.signal)
-    if (controller.signal.aborted) return
-    refinement.value =
-      outcome.status === 'results'
-        ? { product: result, status: 'ready', results: outcome.results, message: '' }
-        : outcome.status === 'empty'
-          ? { product: result, status: 'ready', results: [], message: '' }
-          : { product: result, status: 'error', results: [], message: outcome.message }
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') return
-    refinement.value = { product: result, status: 'error', results: [], message: (err as Error).message }
-  }
-}
-
-// Fetch a chosen image and drop back to the form to confirm. The collectible keeps
-// the booster's name (the refined pick is only its picture), or the pick's own name.
-async function commitPick(pick: CatalogResult, collectibleName: string) {
+// The flow yields a final pick and the name to give the collectible (a booster
+// keeps its own name even though its picture is a refined card art). Fetch the
+// image and drop back to the form to confirm.
+async function onCommit(payload: { result: CatalogResult; name: string }) {
   const source = activeSource.value
   if (!source) return
   localError.value = ''
   busy.value = true
   try {
-    setImage(await source.fetchImage(pick, new AbortController().signal))
-    name.value = collectibleName
-    refinement.value = null
+    setImage(await source.fetchImage(payload.result, new AbortController().signal))
+    name.value = payload.name
     tab.value = UPLOAD
   } catch (err) {
     localError.value = (err as Error).message
   } finally {
     busy.value = false
   }
-}
-
-function cancelRefine() {
-  refineCtrl?.abort()
-  refinement.value = null
-  localError.value = ''
 }
 
 function submit() {
@@ -153,55 +108,11 @@ function submit() {
     </div>
 
     <template v-if="activeSource">
-      <!-- Step 2: choose the artwork for a picked booster (its set's card arts, in
-           collector order, plus the set symbol). -->
-      <template v-if="refinement">
-        <button
-          type="button"
-          class="mb-2 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink"
-          @click="cancelRefine"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M10 3L5 8l5 5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          Back to search
-        </button>
-        <p class="mb-3 text-sm font-medium text-ink">{{ refinement.product.name }}</p>
-        <p class="mb-3 text-xs text-ink-faint">
-          Pick the artwork — any card from this set, or its set symbol. No connection or
-          no match? Use the symbol, or upload your own picture.
-        </p>
-
-        <div
-          v-if="refinement.status === 'loading'"
-          class="flex items-center justify-center gap-2 py-8 text-sm text-ink-muted"
-        >
-          <svg class="h-4 w-4 motion-safe:animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="8" cy="8" r="6" class="opacity-25" />
-            <path d="M14 8a6 6 0 00-6-6" stroke-linecap="round" />
-          </svg>
-          Loading artwork…
-        </div>
-        <div
-          v-else-if="refinement.status === 'error'"
-          class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-3"
-        >
-          <p class="text-sm text-ink">{{ refinement.message }}</p>
-        </div>
-        <CatalogResultGrid
-          v-else
-          :results="refinement.results"
-          @pick="(art) => commitPick(art, refinement!.product.name)"
-          @zoom="(art) => emit('zoom', { src: art.imageUrl, alt: art.name })"
-        />
-      </template>
-
-      <!-- Step 1: search the source. -->
-      <CatalogSearch
-        v-else
+      <!-- The source's search → (optional) artwork-refine → commit flow. -->
+      <CatalogFlow
         :key="activeSource.key"
         :source="activeSource"
-        @pick="onSearchPick"
+        @commit="onCommit"
         @zoom="(result) => emit('zoom', { src: result.imageUrl, alt: result.name })"
       />
 
