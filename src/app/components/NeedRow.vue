@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NeedRow } from '@core/composables/useNeeds'
 import OwnedStepper from './OwnedStepper.vue'
+import ProgressBar from './ProgressBar.vue'
 
 defineProps<{
   row: NeedRow
@@ -46,6 +47,15 @@ const emit = defineEmits<{ setOwned: [count: number]; zoom: [] }>()
           <span v-if="showSet" class="text-ink-faint">· {{ row.setName }}</span>
         </span>
       </p>
+
+      <!-- Extra copies can push owned past target, so cap it — the bar reads
+           progress toward the target, never over 100%. -->
+      <ProgressBar
+        class="mt-1.5"
+        :owned="Math.min(row.owned, row.target)"
+        :total="row.target"
+        :complete="row.complete"
+      />
     </div>
 
     <OwnedStepper

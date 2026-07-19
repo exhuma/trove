@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import BaseOverlay from './BaseOverlay.vue'
+import Spinner from './Spinner.vue'
 
+const props = defineProps<{ saving?: boolean }>()
 const emit = defineEmits<{ add: [name: string]; close: [] }>()
 
 const name = ref('')
@@ -35,16 +37,19 @@ function submit() {
       <div class="mt-6 flex gap-2 sm:justify-end">
         <button
           type="button"
-          class="min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink sm:flex-none"
+          :disabled="props.saving"
+          class="min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink disabled:opacity-50 sm:flex-none"
           @click="emit('close')"
         >
           Cancel
         </button>
         <button
           type="submit"
-          class="min-h-11 flex-1 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright sm:flex-none"
+          :disabled="props.saving"
+          class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50 sm:flex-none"
         >
-          Create set
+          <Spinner v-if="props.saving" class="h-4 w-4" />
+          {{ props.saving ? 'Creating…' : 'Create set' }}
         </button>
       </div>
     </form>

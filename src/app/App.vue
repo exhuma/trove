@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
@@ -41,8 +41,16 @@ watch(
   { immediate: true },
 )
 
+const savingSet = ref(false)
+
 async function onAddSet(name: string) {
-  const result = await addSet(name)
+  savingSet.value = true
+  let result
+  try {
+    result = await addSet(name)
+  } finally {
+    savingSet.value = false
+  }
   if (!result.ok) return push(result.message, { tone: 'error' })
   closeAddSet()
   push(`Created “${name}”.`)
@@ -73,7 +81,7 @@ async function onAddSet(name: string) {
 
   <RouterView />
 
-  <AddSetOverlay v-if="showAddSet" @add="onAddSet" @close="closeAddSet" />
+  <AddSetOverlay v-if="showAddSet" :saving="savingSet" @add="onAddSet" @close="closeAddSet" />
   <WelcomeOverlay v-if="session && showWelcome" />
   <UpdateBanner />
   <ToastHost />

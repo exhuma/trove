@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import BaseOverlay from './BaseOverlay.vue'
+import Spinner from './Spinner.vue'
 import CatalogFlow from '@core/components/CatalogFlow.vue'
 import { fileToStorableBlob } from '@core/image'
 import { CATALOG_SOURCES, type CatalogResult } from '@core/catalog'
 
-const props = defineProps<{ setName: string; error?: string }>()
+const props = defineProps<{ setName: string; error?: string; saving?: boolean }>()
 const emit = defineEmits<{
   add: [payload: { name: string; blob: Blob }]
   zoom: [payload: { src: string; alt: string }]
@@ -173,17 +174,19 @@ function submit() {
       <div class="mt-6 flex gap-2 sm:justify-end">
         <button
           type="button"
-          class="min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink sm:flex-none"
+          :disabled="props.saving"
+          class="min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium text-ink-muted hover:bg-hall-panel hover:text-ink disabled:opacity-50 sm:flex-none"
           @click="emit('close')"
         >
           Cancel
         </button>
         <button
           type="submit"
-          :disabled="busy"
-          class="min-h-11 flex-1 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50 sm:flex-none"
+          :disabled="busy || props.saving"
+          class="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright disabled:opacity-50 sm:flex-none"
         >
-          {{ busy ? 'Working…' : 'Add collectible' }}
+          <Spinner v-if="busy || props.saving" class="h-4 w-4" />
+          {{ props.saving ? 'Adding…' : busy ? 'Working…' : 'Add collectible' }}
         </button>
       </div>
     </form>

@@ -46,6 +46,7 @@ const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) 
 
 const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
+const savingCollectible = ref(false)
 
 // A single lightbox serves every zoom source (collection tiles and search
 // thumbnails), so its state lives here at the root.
@@ -85,7 +86,13 @@ function onFab() {
 
 async function onAddCollectible(payload: { name: string; blob: Blob }) {
   if (!openSetId.value) return
-  const result = await addCollectible(openSetId.value, payload)
+  savingCollectible.value = true
+  let result
+  try {
+    result = await addCollectible(openSetId.value, payload)
+  } finally {
+    savingCollectible.value = false
+  }
   if (!result.ok) {
     // Left open with its input intact, so nothing the user typed is lost.
     addCollectibleError.value = result.message
@@ -195,6 +202,7 @@ function deleteSetMessage(set: CollectibleSet) {
     v-if="showAddCollectible && openSet"
     :set-name="openSet.name"
     :error="addCollectibleError"
+    :saving="savingCollectible"
     @add="onAddCollectible"
     @zoom="(payload) => (zoomImage = payload)"
     @close="showAddCollectible = false"
