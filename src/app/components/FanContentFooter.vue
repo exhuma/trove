@@ -1,3 +1,7 @@
+<script setup lang="ts">
+import AppVersion from './AppVersion.vue'
+</script>
+
 <template>
   <!-- Required verbatim by the Wizards of the Coast Fan Content Policy, because
        the seeded card images and set symbols are their property. Do not
@@ -19,6 +23,9 @@
         class="underline hover:text-ink-muted"
         >magic-sealed-data</a
       >. Demo app — your collection is stored in your account.
+    </p>
+    <p class="mt-3 flex justify-center">
+      <AppVersion />
     </p>
   </footer>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import SetCard from '../components/SetCard.vue'
 import SetDetail from '../components/SetDetail.vue'
 import NavSwitcher from '../components/NavSwitcher.vue'
@@ -12,6 +12,7 @@ import { useCollection } from '@core/composables/useCollection'
 import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from '../composables/useAddSetPrompt'
+import { useOnboarding } from '../composables/useOnboarding'
 import type { CollectibleSet } from '@core/types'
 
 // Header, error banner and the add-set dialog now live in the shell (App.vue) so
@@ -22,6 +23,11 @@ const { sets, loading, removeSet, addCollectible, removeCollectible, setOwnedCou
 const { needingCount } = useNeeds()
 const { push } = useToast()
 const { open: showAddSet, openAddSet } = useAddSetPrompt()
+const { startTour } = useOnboarding()
+
+// Trickle in this view's tips on each visit (gated behind the welcome intro; the
+// welcome overlay kicks off the first run directly). Runner skips missing anchors.
+onMounted(() => void startTour('collection'))
 
 function onSetOwned(id: string, count: number) {
   if (!openSetId.value) return
@@ -162,7 +168,7 @@ function deleteSetMessage(set: CollectibleSet) {
       </EmptyState>
 
       <ul v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <li v-for="set in sets" :key="set.id">
+        <li v-for="(set, i) in sets" :key="set.id" :data-tour="i === 0 ? 'set-card' : undefined">
           <SetCard :set="set" @open="openSetId = set.id" @remove="setPendingDelete = set" />
         </li>
       </ul>
@@ -174,6 +180,7 @@ function deleteSetMessage(set: CollectibleSet) {
   <!-- Phone-only floating add button; the header / detail buttons cover `sm` up. -->
   <button
     v-if="!overlayOpen && !(loading && !sets.length)"
+    :data-tour="openSet ? undefined : 'add-set'"
     class="fixed z-40 grid h-14 w-14 place-items-center rounded-full bg-violet text-ink shadow-lg shadow-violet-muted/30 hover:bg-violet-bright sm:hidden"
     style="right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom))"
     :aria-label="openSet ? 'Add collectible' : 'Add set'"

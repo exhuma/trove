@@ -48,6 +48,7 @@ const { signOut } = useAuth()
         </RouterLink>
         <RouterLink
           to="/needs"
+          data-tour="needs-nav"
           exact-active-class="bg-hall-panel text-ink"
           class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink motion-safe:transition"
         >
@@ -64,6 +65,7 @@ const { signOut } = useAuth()
       <!-- On phones the floating action button adds sets, so the header keeps
            only the sign-out control; the "New set" button returns from `sm` up. -->
       <button
+        data-tour="add-set"
         class="hidden shrink-0 items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-ink hover:bg-violet-bright motion-safe:transition sm:flex"
         @click="emit('addSet')"
       >

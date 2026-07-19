@@ -4,11 +4,13 @@ import { useRouter } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
 import AppHeader from './components/AppHeader.vue'
 import AddSetOverlay from './components/AddSetOverlay.vue'
+import WelcomeOverlay from './components/WelcomeOverlay.vue'
 import { useAuth } from '@core/auth'
 import { useCollection } from '@core/composables/useCollection'
 import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from './composables/useAddSetPrompt'
+import { useOnboarding } from './composables/useOnboarding'
 
 // The shell owns the session→data lifecycle: load the collection when a user signs
 // in (or changes), clear it and return to /login when they sign out. Token refreshes
@@ -18,15 +20,20 @@ const { totals, error, loadForUser, reset, addSet } = useCollection()
 const { needingCount, clearNeedsSnapshot } = useNeeds()
 const { push } = useToast()
 const { open: showAddSet, openAddSet, closeAddSet } = useAddSetPrompt()
+const { showWelcome, ensureLoaded, reset: resetOnboarding } = useOnboarding()
 const router = useRouter()
 
 watch(
   session,
   (next, prev) => {
-    if (next && next.user.id !== prev?.user?.id) void loadForUser()
-    else if (!next && prev) {
+    if (next && next.user.id !== prev?.user?.id) {
+      void loadForUser()
+      // Non-throwing: a failed load simply leaves the welcome gate closed.
+      void ensureLoaded()
+    } else if (!next && prev) {
       reset()
       clearNeedsSnapshot()
+      resetOnboarding()
       void router.push('/login')
     }
   },
@@ -66,5 +73,6 @@ async function onAddSet(name: string) {
   <RouterView />
 
   <AddSetOverlay v-if="showAddSet" @add="onAddSet" @close="closeAddSet" />
+  <WelcomeOverlay v-if="session && showWelcome" />
   <ToastHost />
 </template>

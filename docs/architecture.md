@@ -75,15 +75,19 @@ src/
       repository.ts         #   the CollectionRepository interface — the seam
       supabase-repository.ts#   production implementation
       memory-repository.ts  #   dev-only in-memory implementation
-      index.ts              #   picks the impl from useMemoryBackend → `repo`
+      onboarding-repository.ts # onboarding seam (welcome + seen-tip state)
+      onboarding-supabase.ts   #   + onboarding-memory.ts implementations
+      index.ts              #   picks impls from useMemoryBackend → `repo`, `onboardingRepo`
       boosters.json         #   vendored sealed-product catalogue (generated)
     composables/            # useCollection, useNeeds, useToast, useModalA11y
     components/             # CatalogFlow + CatalogStep + CatalogResultGrid, TroveMark, TroveWordmark
+    version.ts              # build identity (CalVer/channel/commit) from git tags
   app/                      # the Vue UI shell — Vite `root` lives here
     index.html  main.ts  router.ts  App.vue
-    views/                  # CollectionView, NeedsView, LoginView, AuthCallbackView
-    components/             # SetDetail, CollectibleTile, OwnedStepper, overlays, …
-    composables/            # useAddSetPrompt (app-only)
+    views/                  # CollectionView, NeedsView, LoginView (+ landing), AuthCallbackView
+    components/             # SetDetail, CollectibleTile, OwnedStepper, overlays, WelcomeOverlay, AppVersion, …
+    composables/            # useAddSetPrompt, useOnboarding (app-only)
+    onboarding/             # tour tip registry (tips.ts) + driver.js runner (runTour.ts)
     public/                 # favicon, PWA icons, _redirects
 supabase/                   # config.toml, migrations/, README.md (Supabase CLI, no local stack)
 ```
@@ -136,7 +140,11 @@ has an inline rationale. This table points you at the right one.
 | `core/data/repository.ts` | The `CollectionRepository` interface — the one persistence seam. `NewCollectible` shape. |
 | `core/data/supabase-repository.ts` | Production impl: Postgres CRUD + batch-signs Storage URLs (`SIGNED_URL_TTL = 1h`). |
 | `core/data/memory-repository.ts` | Dev-only in-memory impl; uses object URLs for images. |
-| `core/data/index.ts` | Exports the active `repo` singleton, chosen by `useMemoryBackend`. |
+| `core/data/index.ts` | Exports the active `repo` and `onboardingRepo` singletons, chosen by `useMemoryBackend`. |
+| `core/data/onboarding-repository.ts` | The `OnboardingRepository` seam + `OnboardingState` (`welcomeSeen`, `seenTips`); Supabase/memory impls alongside it. Backs the first-run welcome + guided tour; state is server-side per user, never localStorage. |
+| `core/version.ts` | Build identity (`version`/`channel`/`commit`) inlined from git tags at build; `isPrerelease` drives the channel chip. See `vite.config.ts` `define`. |
+| `app/composables/useOnboarding.ts` | Singleton onboarding state: non-throwing de-duped `ensureLoaded`, the welcome gate (`showWelcome`), and `startTour(view)` which persists only tips actually shown. |
+| `app/onboarding/tips.ts` / `runTour.ts` | Declarative `TOUR_TIPS` registry + `selectTips` (essentials-first, capped); thin driver.js runner that anchors on the first *visible* `[data-tour]` match and reports shown keys. |
 | `core/composables/useCollection.ts` | The heart. Optimistic CRUD with rollback; per-collectible debounced writes (`UPDATE_DEBOUNCE_MS = 400`); undo closures; `progressOf(set)` and `totals`. |
 | `core/composables/useNeeds.ts` | Needs computation with **snapshot** semantics (below); sort/group prefs in localStorage. |
 | `core/composables/useToast.ts` | Global toast queue; toasts carry an optional `undo` action — this is the undo UI. |

@@ -21,6 +21,7 @@ defineProps<{ needing: number }>()
       </RouterLink>
       <RouterLink
         to="/needs"
+        data-tour="needs-nav"
         exact-active-class="bg-violet text-ink"
         class="grid min-h-11 flex-1 place-items-center rounded-lg text-sm font-medium text-ink-muted motion-safe:transition"
       >

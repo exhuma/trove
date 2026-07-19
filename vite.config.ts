@@ -1,7 +1,47 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { fileURLToPath, URL } from 'node:url'
+
+// ── Build identity (CalVer, following git tags) ──────────────────────────────
+// The displayed version follows git tags: releases are tagged `vYYYY.MM.MICRO`
+// (pre-releases `vYYYY.MM.MICRO-beta.N`). We read it at build time via
+// `git describe` and inline it through `define` below, so no manual package.json
+// bump is needed to surface a release. Everything degrades gracefully when git
+// is unavailable (e.g. a source tarball) — the build never fails on this.
+function git(...args: string[]): string {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8' }).trim()
+  } catch {
+    return ''
+  }
+}
+
+function computeBuildInfo(): { version: string; channel: string; commit: string } {
+  // e.g. "2026.07.0", "2026.07.0-beta.1", "2026.07.0-3-gb8c860b", or a bare SHA.
+  const described = git('describe', '--tags', '--always', '--dirty').replace(/^v/, '')
+  const pkgVersion = createRequire(import.meta.url)('./package.json').version as string
+  const version = described || pkgVersion
+
+  // Channel: an explicit env override wins; otherwise derive from the tag — a
+  // pre-release token (beta/rc/alpha) names the channel, an exact clean tag is
+  // production, and anything ahead of / without a tag is an untagged "dev" build.
+  const override = process.env.VITE_APP_CHANNEL?.trim()
+  const pre = /-(alpha|beta|rc)\b/i.exec(described)
+  const channel = override
+    ? override
+    : pre
+      ? pre[1].toLowerCase()
+      : /^\d+\.\d+\.\d+$/.test(described)
+        ? 'production'
+        : 'dev'
+
+  return { version, channel, commit: git('rev-parse', '--short', 'HEAD') }
+}
+
+const buildInfo = computeBuildInfo()
 
 // One responsive build served everywhere: the app in src/app adapts its UI to the
 // viewport (a centered, hover-rich desktop layout that degrades to bottom sheets,
@@ -11,6 +51,12 @@ export default defineConfig({
   // Relative asset URLs so the bundle works under any Cloudflare Pages path.
   base: './',
   root: fileURLToPath(new URL('./src/app', import.meta.url)),
+  // Build identity, inlined at build time and read via `@core/version`.
+  define: {
+    __APP_VERSION__: JSON.stringify(buildInfo.version),
+    __APP_CHANNEL__: JSON.stringify(buildInfo.channel),
+    __APP_COMMIT__: JSON.stringify(buildInfo.commit),
+  },
   plugins: [
     vue(),
     // Make Trove installable to a phone/desktop home screen and let its shell

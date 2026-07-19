@@ -10,17 +10,21 @@ import { useCollection } from '@core/composables/useCollection'
 import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from '../composables/useAddSetPrompt'
+import { useOnboarding } from '../composables/useOnboarding'
 import type { NeedRow as Row } from '@core/composables/useNeeds'
 
 const { sets, loading, ready, setOwnedCount } = useCollection()
 const { needGroups, needTotals, needingCount, grouped, sort, captureNeeds } = useNeeds()
 const { push } = useToast()
 const { openAddSet } = useAddSetPrompt()
+const { startTour } = useOnboarding()
 
 // Two triggers, both needed: mount covers arriving from the collection with data
 // already loaded, and the ready watch covers a hard refresh straight onto /needs,
 // where sets is still empty at mount and a capture then would find nothing.
 onMounted(captureNeeds)
+// Trickle in this view's tips on each visit (gated behind the welcome intro).
+onMounted(() => void startTour('needs'))
 watch(ready, (isReady) => {
   if (isReady) captureNeeds()
 })
@@ -58,6 +62,7 @@ function onSetOwned(row: Row, count: number) {
         <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           <NeedsControls
             v-if="needGroups.length"
+            data-tour="needs-controls"
             v-model:grouped="grouped"
             v-model:sort="sort"
           />

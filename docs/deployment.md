@@ -64,3 +64,59 @@ task deploy            # build + deploy
 
 The deploy rebuilds first, so the deployed bundle always matches the current `.env`
 and working tree. To check the bundle before shipping it: `task preview`.
+
+## Custom domain
+
+The app needs **no code changes** to serve from a custom domain: assets are
+relative (`base: './'`), the PWA manifest's `start_url`/`scope` are relative, and
+the auth callback is derived at runtime from `window.location.origin`. Serving from
+`https://trove.albert.lu` therefore just works once the two settings below are in
+place.
+
+1. **Cloudflare Pages → the `trove` project → Custom domains → Set up a domain.**
+   Add `trove.albert.lu`. Cloudflare gives you a DNS target; add the matching
+   record in the `albert.lu` zone (a `CNAME` to the project's `*.pages.dev`
+   hostname, or Cloudflare wires it automatically if the zone is on the same
+   account). `PAGES_PROJECT` stays `trove` — you are adding a hostname to the same
+   project, not creating a new one.
+2. **Supabase dashboard → Authentication → URL Configuration.** Set **Site URL** to
+   `https://trove.albert.lu` and add `https://trove.albert.lu/auth/callback` to the
+   redirect allow-list. Keep the existing `trove-c9g.pages.dev` origin and the
+   `http://localhost:5173/auth/callback` dev entry so both keep working.
+
+## Release & versioning
+
+Releases follow **calendar versioning** and **git tags** — there is nothing to bump
+in `package.json` to cut a release.
+
+- **Scheme.** Tag releases `vYYYY.MM.MICRO` (e.g. `v2026.07.0`), pre-releases
+  `vYYYY.MM.MICRO-beta.N` (or `-rc.N` / `-alpha.N`). `MICRO` resets per month.
+- **How it surfaces.** `vite.config.ts` runs `git describe --tags` at build time and
+  inlines the result as `__APP_VERSION__` / `__APP_CHANNEL__` / `__APP_COMMIT__`
+  (read via `@core/version`). A tiny `AppVersion` component shows the version in the
+  footer and on the login screen; a **channel chip** appears next to it for any
+  non-production build (`beta`, `rc`, `alpha`, or `dev` for an untagged commit) and
+  is hidden for a clean production tag. `VITE_APP_CHANNEL` can force the label (see
+  `.env.example`). Everything degrades to the `package.json` version if git is
+  unavailable, so the build never fails on this.
+- **Cutting a release.** Tag, then deploy — the local `task deploy` build reads the
+  tag off the working tree:
+
+  ```sh
+  git tag v2026.07.0        # or v2026.07.0-beta.1 for a pre-release
+  task deploy
+  ```
+
+- **Beta environments.** The channel chip is an app-level lifecycle signal, not a
+  separate backend. A genuinely isolated beta *database* would be Supabase
+  **Branching** (a paid, dashboard-level feature with its own migration flow); it is
+  deliberately **not** adopted here — the single live project plus the channel chip
+  covers the need. Revisit Branching only if beta data must be kept off production.
+
+## Database migrations
+
+Schema changes ship as Supabase CLI migrations under `supabase/migrations/` and are
+applied to the live project with `task db:push` (see
+[`supabase/README.md`](../supabase/README.md)). The deploy never touches the DB, so
+apply pending migrations **before** shipping a build that depends on them — e.g. the
+`onboarding` table backing the first-run welcome and guided tour.
