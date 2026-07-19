@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import TroveWordmark from '@core/components/TroveWordmark.vue'
 import { useAuth } from '@core/auth'
+import { useOnboarding } from '../composables/useOnboarding'
 
 defineProps<{
   sets: number
@@ -13,6 +15,14 @@ defineProps<{
 const emit = defineEmits<{ addSet: [] }>()
 
 const { signOut } = useAuth()
+const route = useRoute()
+const { replayTour } = useOnboarding()
+
+// Always-available entry to the guided tour, so dismissing the first-run welcome is
+// never a dead end. Replays the tour for whichever section the user is on.
+function takeTour() {
+  replayTour(route.name === 'needs' ? 'needs' : 'collection')
+}
 </script>
 
 <template>
@@ -73,6 +83,19 @@ const { signOut } = useAuth()
           <path d="M8 3v10M3 8h10" stroke-linecap="round" />
         </svg>
         New set
+      </button>
+
+      <button
+        class="shrink-0 rounded-lg border border-hall-line p-2 text-ink-muted hover:border-violet hover:text-ink motion-safe:transition"
+        aria-label="Take a tour"
+        title="Take a tour"
+        @click="takeTour"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+          <circle cx="10" cy="10" r="7.5" />
+          <path d="M7.7 7.8a2.3 2.3 0 1 1 3.1 2.9c-.5.3-.8.7-.8 1.4" stroke-linecap="round" />
+          <circle cx="10" cy="14.7" r="0.5" fill="currentColor" stroke="none" />
+        </svg>
       </button>
 
       <button

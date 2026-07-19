@@ -3,6 +3,7 @@
 // onboarding state is loaded and the welcome hasn't been seen. Either choice marks
 // the welcome seen (so it never reappears); "Take the tour" then kicks off the
 // collection tour. Built on the shared overlay shell like every other modal.
+import { nextTick } from 'vue'
 import BaseOverlay from './BaseOverlay.vue'
 import TroveMark from '@core/components/TroveMark.vue'
 import { useOnboarding } from '../composables/useOnboarding'
@@ -10,12 +11,13 @@ import { useOnboarding } from '../composables/useOnboarding'
 const { markWelcomeSeen, startTour } = useOnboarding()
 
 async function takeTour() {
-  await markWelcomeSeen()
-  await startTour('collection')
+  markWelcomeSeen() // optimistic → this dialog closes immediately
+  await nextTick() // let it unmount before the tour takes over focus
+  startTour('collection')
 }
 
-async function skip() {
-  await markWelcomeSeen()
+function skip() {
+  markWelcomeSeen()
 }
 </script>
 

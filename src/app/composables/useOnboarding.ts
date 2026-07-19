@@ -33,30 +33,55 @@ async function ensureLoaded(): Promise<void> {
   return loadInFlight
 }
 
-async function markWelcomeSeen(): Promise<void> {
+/** Await a persistence write and adopt its result; never throws (state stays local). */
+async function persist(write: Promise<OnboardingState>): Promise<void> {
   try {
-    state.value = await onboardingRepo.markWelcomeSeen()
+    state.value = await write
   } catch (e) {
-    console.error('[onboarding] markWelcomeSeen failed', e)
+    console.error('[onboarding] persist failed', e)
   }
 }
 
 /**
- * Run the tour for a view, gated behind the welcome intro. Selects unseen tips,
- * shows them through the runner, and persists only the keys actually displayed so
- * they never repeat. No-op until the state is loaded and the welcome is seen.
+ * Mark the welcome intro seen. **Optimistic**: the local flag flips synchronously so
+ * the UI reacts (and the dialog closes) immediately, even if the server write is
+ * slow or fails; the write is fired in the background and can only correct the local
+ * state, never block it. This is what keeps the welcome buttons responsive.
  */
-async function startTour(view: ViewKey): Promise<void> {
-  if (!loaded.value || !welcomeSeen.value || !state.value) return
-  const tips = selectTips(view, state.value.seenTips)
+function markWelcomeSeen(): void {
+  state.value = { welcomeSeen: true, seenTips: state.value?.seenTips ?? [] }
+  void persist(onboardingRepo.markWelcomeSeen())
+}
+
+/**
+ * Run a view's tour. A normal run waits behind the welcome gate and shows only
+ * unseen tips; a `replay` (the "Take a tour" button) bypasses the gate and re-shows
+ * every tip for the view, so the tour is always reachable — never a dead end.
+ */
+async function runTourFor(view: ViewKey, replay: boolean): Promise<void> {
+  if (!replay && (!loaded.value || !welcomeSeen.value)) return
+  const seen = replay ? [] : (state.value?.seenTips ?? [])
+  const tips = selectTips(view, seen)
   if (!tips.length) return
   const shownKeys = await runTour(tips)
   if (!shownKeys.length) return
-  try {
-    state.value = await onboardingRepo.markTipsSeen(shownKeys)
-  } catch (e) {
-    console.error('[onboarding] markTipsSeen failed', e)
+  // Optimistically union locally so a seen tip never repeats this session even if the
+  // persist below fails; then write through in the background.
+  state.value = {
+    welcomeSeen: welcomeSeen.value,
+    seenTips: [...new Set([...(state.value?.seenTips ?? []), ...shownKeys])],
   }
+  void persist(onboardingRepo.markTipsSeen(shownKeys))
+}
+
+/** Run a view's tour if the welcome gate has passed (called from views on mount). */
+function startTour(view: ViewKey): void {
+  void runTourFor(view, false)
+}
+
+/** Re-run a view's full tour on demand (the persistent "Take a tour" control). */
+function replayTour(view: ViewKey): void {
+  void runTourFor(view, true)
 }
 
 /** Clear state on sign-out so the next user loads their own progress afresh. */
@@ -74,6 +99,7 @@ export function useOnboarding() {
     ensureLoaded,
     markWelcomeSeen,
     startTour,
+    replayTour,
     reset,
   }
 }
