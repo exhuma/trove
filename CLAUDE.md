@@ -45,7 +45,9 @@ production build).
     card variant) in collector order — with the set symbol as a fallback.
 - **`src/app/`** — the Vue UI shell (Vite `root`): `index.html`, `main.ts`,
   `router.ts`, `App.vue`, `views/`, `components/`, `public/`.
-- **`supabase/`** — `schema.sql`, `policies.sql` (run once, by hand).
+- **`supabase/`** — versioned schema as Supabase CLI migrations (`config.toml`,
+  `migrations/`). No local Docker stack; migrations are applied to the live
+  project via `task db:push`. See `supabase/README.md`.
 
 The single seam to persistence is `CollectionRepository`
 (`src/core/data/repository.ts`); the heart of the app is
