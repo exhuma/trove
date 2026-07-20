@@ -48,8 +48,13 @@ const buildInfo = computeBuildInfo()
 // a floating action button, and larger touch targets on phones). It shares src/core
 // (data, auth, composables) and one Supabase backend.
 export default defineConfig({
-  // Relative asset URLs so the bundle works under any Cloudflare Pages path.
-  base: './',
+  // Absolute asset URLs. The app is always served at the domain root (both the
+  // .pages.dev origin and the custom domain), and relative URLs (base: './')
+  // resolve against the current path depth — so a hard load of a nested route
+  // like /auth/callback would request /auth/assets/… , which the SPA fallback
+  // serves as index.html (text/html) and the browser rejects as a module script,
+  // white-screening the page. Absolute paths resolve correctly at any depth.
+  base: '/',
   root: fileURLToPath(new URL('./src/app', import.meta.url)),
   // Build identity, inlined at build time and read via `@core/version`.
   define: {
@@ -77,14 +82,14 @@ export default defineConfig({
         // SPA fallback for client-side routes, mirroring dist/_redirects.
         navigateFallback: 'index.html',
       },
-      // Served at the Cloudflare Pages domain root; relative start_url/scope keep
-      // the manifest valid under base: './'.
+      // Served at the Cloudflare Pages domain root; absolute start_url/scope match
+      // base: '/' and keep the manifest anchored to the root.
       manifest: {
         name: 'Trove',
         short_name: 'Trove',
         description: 'Your Magic: The Gathering collection, organised.',
-        start_url: '.',
-        scope: '.',
+        start_url: '/',
+        scope: '/',
         display: 'standalone',
         theme_color: '#0a090f',
         background_color: '#0a090f',
