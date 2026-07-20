@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import type { Session } from '@supabase/supabase-js'
+import type { Provider, Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useMemoryBackend } from './dev-backend'
 
@@ -70,6 +70,17 @@ export function useAuth() {
     return { error: error?.message ?? null }
   }
 
+  async function signInWithOAuth(provider: Provider): Promise<AuthResult> {
+    if (useMemoryBackend) return signInMemory()
+    // On success Supabase redirects the whole page to the provider; the OAuth
+    // return lands on /auth/callback, the same path magic-link already uses.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callbackUrl() },
+    })
+    return { error: error?.message ?? null }
+  }
+
   async function signOut(): Promise<void> {
     if (useMemoryBackend) {
       session.value = null
@@ -92,6 +103,7 @@ export function useAuth() {
     signUp,
     signInWithPassword,
     signInWithMagicLink,
+    signInWithOAuth,
     signOut,
   }
 }
