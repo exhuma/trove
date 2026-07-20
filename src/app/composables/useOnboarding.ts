@@ -59,7 +59,14 @@ function markWelcomeSeen(): void {
  * every tip for the view, so the tour is always reachable — never a dead end.
  */
 async function runTourFor(view: ViewKey, replay: boolean): Promise<void> {
-  if (!replay && (!loaded.value || !welcomeSeen.value)) return
+  if (!replay) {
+    // A view's onMounted fires this before the session watcher's `ensureLoaded`
+    // has resolved, so awaiting here is what lets a returning user pick up tips
+    // shipped since their last visit — otherwise the mount loses the race against
+    // the load and the tour silently no-ops (the load is idempotent + de-duped).
+    await ensureLoaded()
+    if (!loaded.value || !welcomeSeen.value) return
+  }
   const seen = replay ? [] : (state.value?.seenTips ?? [])
   const tips = selectTips(view, seen)
   if (!tips.length) return
