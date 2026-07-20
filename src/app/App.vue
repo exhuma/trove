@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
+import InstallBanner from './components/InstallBanner.vue'
 import AppHeader from './components/AppHeader.vue'
 import AddSetOverlay from './components/AddSetOverlay.vue'
 import WelcomeOverlay from './components/WelcomeOverlay.vue'
@@ -84,5 +85,6 @@ async function onAddSet(name: string) {
   <AddSetOverlay v-if="showAddSet" :saving="savingSet" @add="onAddSet" @close="closeAddSet" />
   <WelcomeOverlay v-if="session && showWelcome" />
   <UpdateBanner />
+  <InstallBanner v-if="session" />
   <ToastHost />
 </template>
