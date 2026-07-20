@@ -149,7 +149,7 @@ has an inline rationale. This table points you at the right one.
 | `core/composables/useNeeds.ts` | Needs computation with **snapshot** semantics (below); sort/group prefs in localStorage. |
 | `core/composables/useToast.ts` | Global toast queue; toasts carry an optional `undo` action — this is the undo UI. |
 | `core/composables/useModalA11y.ts` | Escape-close, Tab focus-trap, focus restore; `capture` option for stacked modals. |
-| `core/auth.ts` | Supabase email/password + magic-link; session singleton; the `authReady` promise the router awaits. |
+| `core/auth.ts` | Supabase email/password + magic-link + social OAuth; session singleton; the `authReady` promise the router awaits. Also `linkIdentity`/`getIdentities`/`unlinkIdentity` for the Account dialog — see [`account-linking.md`](./account-linking.md). |
 | `core/catalog/types.ts` | The `CatalogSource` seam: a searchable "add" source (search + optional searchable `refine` step + fetch-a-storable-image) with its own UI copy. `CatalogResult` (with `label`/`fit` display hints) / `CatalogRefineStep` / `CatalogSearchOutcome`. |
 | `core/catalog/mtg-cards/` | MTG single-card source: `searchCards` (`unique=art`, debounced, abortable) + `fetchImage` (full-card `normal`, CORS cache-buster). |
 | `core/catalog/mtg-boosters/` | MTG booster source: offline search over vendored `boosters.json` (prefix-stripped `label`); searchable `refine` offers the set's card arts (`art_crop`, fetched once then filtered by card name in memory) + the set symbol; `fetchImage` crops art to the card aspect and rasterises the SVG symbol. |

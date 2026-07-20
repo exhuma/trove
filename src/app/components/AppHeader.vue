@@ -13,7 +13,7 @@ const props = defineProps<{
   /** Collectibles short of their target — the count beside the Needs link. */
   needing: number
 }>()
-const emit = defineEmits<{ addSet: [] }>()
+const emit = defineEmits<{ addSet: []; account: [] }>()
 
 // The quick stats are secondary, so the meter sits thin and legend-less by default
 // and only unfolds — thicker bar plus the numbered legend — when tapped. This
@@ -147,6 +147,18 @@ function takeTour() {
           <circle cx="10" cy="10" r="7.5" />
           <path d="M7.7 7.8a2.3 2.3 0 1 1 3.1 2.9c-.5.3-.8.7-.8 1.4" stroke-linecap="round" />
           <circle cx="10" cy="14.7" r="0.5" fill="currentColor" stroke="none" />
+        </svg>
+      </button>
+
+      <button
+        class="shrink-0 rounded-lg border border-hall-line p-2 text-ink-muted hover:border-violet hover:text-ink motion-safe:transition"
+        aria-label="Account"
+        title="Account"
+        @click="emit('account')"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+          <circle cx="10" cy="6.5" r="3" />
+          <path d="M4 16.2a6 6 0 0 1 12 0" stroke-linecap="round" />
         </svg>
       </button>
 

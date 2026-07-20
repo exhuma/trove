@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import type { Provider, Session } from '@supabase/supabase-js'
+import type { Provider, Session, UserIdentity } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useMemoryBackend } from './dev-backend'
 
@@ -81,6 +81,37 @@ export function useAuth() {
     return { error: error?.message ?? null }
   }
 
+  // Attach a social identity to the *current* account. Unlike signInWithOAuth,
+  // this keeps you signed in as the same user and adds the provider to your
+  // identities — the only way to link a provider whose email differs from your
+  // account's (automatic linking only merges matching emails). Full-page redirect,
+  // returning via /auth/callback where the session already exists.
+  // Requires "Manual linking" enabled on the Supabase project.
+  async function linkIdentity(provider: Provider): Promise<AuthResult> {
+    if (useMemoryBackend) return { error: null }
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: { redirectTo: callbackUrl() },
+    })
+    return { error: error?.message ?? null }
+  }
+
+  // The identities currently linked to the signed-in user, for the account dialog.
+  async function getIdentities(): Promise<UserIdentity[]> {
+    if (useMemoryBackend) return []
+    const { data, error } = await supabase.auth.getUserIdentities()
+    if (error) return []
+    return data?.identities ?? []
+  }
+
+  // Detach a linked identity. Supabase refuses to remove the last one, so the UI
+  // only offers this when more than one identity is linked.
+  async function unlinkIdentity(identity: UserIdentity): Promise<AuthResult> {
+    if (useMemoryBackend) return { error: null }
+    const { error } = await supabase.auth.unlinkIdentity(identity)
+    return { error: error?.message ?? null }
+  }
+
   async function signOut(): Promise<void> {
     if (useMemoryBackend) {
       session.value = null
@@ -104,6 +135,9 @@ export function useAuth() {
     signInWithPassword,
     signInWithMagicLink,
     signInWithOAuth,
+    linkIdentity,
+    getIdentities,
+    unlinkIdentity,
     signOut,
   }
 }

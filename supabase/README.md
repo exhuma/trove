@@ -59,6 +59,14 @@ email/password and magic-link redirects resolve:
 Email/password and magic link are both enabled by default. Decide whether to
 require email confirmation on sign-up under **Authentication → Providers → Email**.
 
+### Manual identity linking (for the Account dialog)
+
+Letting a signed-in user attach a social provider whose email differs from their
+account requires **manual linking** to be enabled: **Authentication → Sign In /
+Providers** (advanced) → **Manual linking** (`security_manual_linking_enabled`).
+Without it, `linkIdentity()` returns a `Manual linking is disabled` error and the
+feature is inert. See [`../docs/account-linking.md`](../docs/account-linking.md).
+
 ## Client env
 
 Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` and

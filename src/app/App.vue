@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
 import InstallBanner from './components/InstallBanner.vue'
 import AppHeader from './components/AppHeader.vue'
 import AddSetOverlay from './components/AddSetOverlay.vue'
+import AccountOverlay from './components/AccountOverlay.vue'
 import WelcomeOverlay from './components/WelcomeOverlay.vue'
 import { useAuth } from '@core/auth'
 import { useCollection } from '@core/composables/useCollection'
 import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from './composables/useAddSetPrompt'
+import { useAccountPrompt } from './composables/useAccountPrompt'
 import { useOnboarding } from './composables/useOnboarding'
 
 // The shell owns the session→data lifecycle: load the collection when a user signs
@@ -22,8 +24,20 @@ const { totals, error, loadForUser, reset, addSet } = useCollection()
 const { needingCount, clearNeedsSnapshot } = useNeeds()
 const { push } = useToast()
 const { open: showAddSet, openAddSet, closeAddSet } = useAddSetPrompt()
+const { open: showAccount, openAccount, closeAccount } = useAccountPrompt()
 const { showWelcome, ensureLoaded, reset: resetOnboarding } = useOnboarding()
 const router = useRouter()
+
+// linkIdentity does a full-page redirect, so the success toast can't fire in place;
+// AccountOverlay leaves a marker in sessionStorage that we pick up once the browser
+// lands back here.
+onMounted(() => {
+  const linked = sessionStorage.getItem('trove:pending-identity-link')
+  if (linked) {
+    sessionStorage.removeItem('trove:pending-identity-link')
+    push(`${linked} account linked.`)
+  }
+})
 
 watch(
   session,
@@ -72,6 +86,7 @@ async function onAddSet(name: string) {
       :complete-sets="totals.completeSets"
       :needing="needingCount"
       @add-set="openAddSet"
+      @account="openAccount"
     />
 
     <!-- A load or save failed against the backend. -->
@@ -83,6 +98,7 @@ async function onAddSet(name: string) {
   <RouterView />
 
   <AddSetOverlay v-if="showAddSet" :saving="savingSet" @add="onAddSet" @close="closeAddSet" />
+  <AccountOverlay v-if="session && showAccount" @close="closeAccount" />
   <WelcomeOverlay v-if="session && showWelcome" />
   <UpdateBanner />
   <InstallBanner v-if="session" />
