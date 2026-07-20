@@ -4,6 +4,7 @@ import SetCard from '../components/SetCard.vue'
 import SetDetail from '../components/SetDetail.vue'
 import NavSwitcher from '../components/NavSwitcher.vue'
 import AddCollectibleOverlay from '../components/AddCollectibleOverlay.vue'
+import BulkImportOverlay from '../components/BulkImportOverlay.vue'
 import ConfirmOverlay from '../components/ConfirmOverlay.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FanContentFooter from '../components/FanContentFooter.vue'
@@ -13,6 +14,7 @@ import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from '../composables/useAddSetPrompt'
 import { useOnboarding } from '../composables/useOnboarding'
+import { CATALOG_SOURCES, type CatalogImportItem } from '@core/catalog'
 import type { CollectibleSet } from '@core/types'
 
 // Header, error banner and the add-set dialog now live in the shell (App.vue) so
@@ -48,6 +50,13 @@ const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
 const savingCollectible = ref(false)
 
+// Bulk import is offered by any catalogue source with an importer (only MTG
+// cards today); the overlay drives that one source.
+const importSource = CATALOG_SOURCES.find((s) => s.importer)
+const showImport = ref(false)
+const importing = ref(false)
+const importProgress = ref({ done: 0, total: 0 })
+
 // A single lightbox serves every zoom source (collection tiles and search
 // thumbnails), so its state lives here at the root.
 const zoomImage = ref<{ src: string; alt: string } | null>(null)
@@ -70,6 +79,7 @@ const overlayOpen = computed(
   () =>
     showAddSet.value ||
     showAddCollectible.value ||
+    showImport.value ||
     !!setPendingDelete.value ||
     !!collectiblePendingDelete.value ||
     !!zoomImage.value,
@@ -101,6 +111,39 @@ async function onAddCollectible(payload: { name: string; blob: Blob }) {
   addCollectibleError.value = ''
   showAddCollectible.value = false
   push(`Added “${payload.name}”.`)
+}
+
+// Resolve happens inside the overlay; here we fetch each card's image and add it
+// through the same per-row seam as a single add. Sequential keeps the CDN load
+// and memory sane, and lets the grid fill in as it goes.
+async function onImport(items: CatalogImportItem[]) {
+  if (!openSetId.value || !importSource || importing.value) return
+  importing.value = true
+  importProgress.value = { done: 0, total: items.length }
+  const signal = new AbortController().signal
+  let added = 0
+  let failed = 0
+  try {
+    for (const item of items) {
+      try {
+        const blob = await importSource.fetchImage(item.result, signal)
+        const result = await addCollectible(openSetId.value, {
+          name: item.result.name,
+          blob,
+          target: item.target,
+        })
+        result.ok ? added++ : failed++
+      } catch {
+        failed++
+      }
+      importProgress.value = { done: added + failed, total: items.length }
+    }
+  } finally {
+    importing.value = false
+  }
+  showImport.value = false
+  const summary = `Imported ${added} ${added === 1 ? 'collectible' : 'collectibles'}.`
+  push(failed ? `${summary} ${failed} couldn’t be added.` : summary, failed ? { tone: 'error' } : undefined)
 }
 
 async function confirmDeleteSet() {
@@ -147,6 +190,7 @@ function deleteSetMessage(set: CollectibleSet) {
       :set="openSet"
       @back="openSetId = null"
       @add="((addCollectibleError = ''), (showAddCollectible = true))"
+      @import="showImport = true"
       @set-owned="onSetOwned"
       @set-target="onSetTarget"
       @zoom="(id) => zoomCollectible(openSet!, id)"
@@ -206,6 +250,16 @@ function deleteSetMessage(set: CollectibleSet) {
     @add="onAddCollectible"
     @zoom="(payload) => (zoomImage = payload)"
     @close="showAddCollectible = false"
+  />
+
+  <BulkImportOverlay
+    v-if="showImport && openSet && importSource"
+    :set-name="openSet.name"
+    :source="importSource"
+    :importing="importing"
+    :progress="importProgress"
+    @commit="onImport"
+    @close="showImport = false"
   />
 
   <ConfirmOverlay

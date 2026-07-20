@@ -3,6 +3,9 @@ import { mtgBoostersSource } from './mtg-boosters'
 import type { CatalogSource } from './types'
 
 export type {
+  CatalogImporter,
+  CatalogImportItem,
+  CatalogImportOutcome,
   CatalogRefineStep,
   CatalogResult,
   CatalogSearchOutcome,

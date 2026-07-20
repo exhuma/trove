@@ -10,6 +10,7 @@ const props = defineProps<{ set: CollectibleSet }>()
 const emit = defineEmits<{
   back: []
   add: []
+  import: []
   setOwned: [id: string, count: number]
   setTarget: [id: string, target: number]
   zoom: [id: string]
@@ -54,15 +55,27 @@ const progress = computed(() => progressOf(props.set))
         </p>
       </div>
 
-      <button
-        class="flex shrink-0 items-center gap-2 rounded-lg border border-hall-line px-3 py-2 text-sm text-ink hover:border-violet"
-        @click="emit('add')"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M8 3v10M3 8h10" stroke-linecap="round" />
-        </svg>
-        Add collectible
-      </button>
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          class="flex items-center gap-2 rounded-lg border border-hall-line px-3 py-2 text-sm text-ink hover:border-violet"
+          @click="emit('import')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M8 2v8M5 7l3 3 3-3" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M3 11v2a1 1 0 001 1h8a1 1 0 001-1v-2" stroke-linecap="round" />
+          </svg>
+          Import
+        </button>
+        <button
+          class="flex items-center gap-2 rounded-lg border border-hall-line px-3 py-2 text-sm text-ink hover:border-violet"
+          @click="emit('add')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3v10M3 8h10" stroke-linecap="round" />
+          </svg>
+          Add collectible
+        </button>
+      </div>
     </div>
 
     <ProgressBar

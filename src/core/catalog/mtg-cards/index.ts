@@ -1,24 +1,13 @@
 import { toStorableBlob } from '../../image'
 import type { CatalogResult, CatalogSearchOutcome, CatalogSource } from '../types'
+import { imageOf, type ScryfallCard, fetchCardImage } from './scryfall'
+import { mtgCardsImporter } from './import'
 
 /**
  * Scryfall limits /cards/search to 2 requests per second and treats a 429 as a
  * 30s lockout, so callers must debounce. 500ms matches their documented floor.
  */
 const SEARCH_DEBOUNCE_MS = 500
-
-interface ScryfallCard {
-  id: string
-  name: string
-  set_name: string
-  image_uris?: { normal?: string }
-  card_faces?: { image_uris?: { normal?: string } }[]
-}
-
-/** Double-faced cards carry no top-level image_uris; the front face has it. */
-function imageOf(card: ScryfallCard): string | undefined {
-  return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal
-}
 
 async function searchCards(query: string, signal: AbortSignal): Promise<CatalogSearchOutcome> {
   // unique=art returns one entry per distinct artwork rather than collapsing a
@@ -61,19 +50,6 @@ async function searchCards(query: string, signal: AbortSignal): Promise<CatalogS
   return results.length ? { status: 'results', results } : { status: 'empty' }
 }
 
-/** Fetches a chosen card's image as a Blob, ready to downscale and store. */
-async function fetchCardImage(url: string, signal: AbortSignal): Promise<Blob> {
-  // Scryfall's image CDN answers with `Access-Control-Allow-Origin: *` — but only
-  // when the cached entry was created by a request that carried an Origin. A prior
-  // non-CORS hit (a crawler, a prefetch) can poison the cache with a header-less
-  // copy that then blocks the browser's cross-origin fetch. A per-request cache
-  // buster sidesteps that entry, so the CDN serves a fresh, CORS-enabled response.
-  const busted = `${url}${url.includes('?') ? '&' : '?'}cors=${Date.now()}`
-  const res = await fetch(busted, { signal, mode: 'cors' })
-  if (!res.ok) throw new Error(`Could not download that card image (${res.status}).`)
-  return res.blob()
-}
-
 /** The MTG single-card source: search Scryfall, add a chosen printing's full-card art. */
 export const mtgCardsSource: CatalogSource = {
   key: 'scryfall',
@@ -85,5 +61,6 @@ export const mtgCardsSource: CatalogSource = {
   emptyLabel: 'No cards match that name.',
   debounceMs: SEARCH_DEBOUNCE_MS,
   search: searchCards,
+  importer: mtgCardsImporter,
   fetchImage: async (result, signal) => toStorableBlob(await fetchCardImage(result.imageUrl, signal)),
 }

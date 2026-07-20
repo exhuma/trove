@@ -37,6 +37,40 @@ export type CatalogSearchOutcome =
   | { status: 'empty' }
   | { status: 'error'; message: string }
 
+/** One resolved import line: a card the UI can fetch an image for and add. */
+export interface CatalogImportItem {
+  /** The resolved card — hand straight to `source.fetchImage`. */
+  result: CatalogResult
+  /** Copies wanted, from the pasted quantity (becomes the collectible's target). */
+  target: number
+}
+
+/** What an import run produced: items ready to add, plus lines that didn't resolve. */
+export interface CatalogImportOutcome {
+  items: CatalogImportItem[]
+  /** Lines that couldn't be parsed or matched, kept so the user sees what was skipped. */
+  unresolved: { line: string; reason: string }[]
+}
+
+/**
+ * A source's optional bulk paste-import capability. The paste format is tied to
+ * the collectible type (e.g. an Archidekt export is a list of MTG cards), so the
+ * parsing and resolution live in the type-module; the UI just drives `run`.
+ */
+export interface CatalogImporter {
+  /** Example paste shown under the textarea, illustrating the accepted shapes. */
+  example: string
+  /**
+   * Parse `text` and resolve every line to a `CatalogResult`. `onProgress` fires
+   * as resolution advances so the UI can show a counter for a long paste.
+   */
+  run(
+    text: string,
+    signal: AbortSignal,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<CatalogImportOutcome>
+}
+
 /**
  * The optional second step: a *searchable* filter over a picked first-step result.
  *
@@ -97,6 +131,12 @@ export interface CatalogSource {
    * (Scryfall cards) send the first pick straight to `fetchImage`.
    */
   refine?: CatalogRefineStep
+  /**
+   * Optional bulk paste-import (see `CatalogImporter`). Sources with it get an
+   * "Import" entry point that resolves a pasted list into many collectibles at
+   * once; sources without it (boosters) simply don't offer bulk import.
+   */
+  importer?: CatalogImporter
   /**
    * Fetches a picked result's image and returns a **storable** Blob — already
    * downscaled and WebP-encoded, ready to hand straight to `addCollectible`. The
