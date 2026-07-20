@@ -55,6 +55,15 @@ export const TOUR_TIPS: readonly TourTip[] = [
     essential: false,
   },
   {
+    key: 'collection-stats',
+    view: 'collection',
+    selector: '[data-tour="stats"]',
+    title: 'Your collection at a glance',
+    body: 'This slim bar shows the shape of your collection — sets, copies owned, still wanted, and completed. Tap it any time to expand the full breakdown.',
+    priority: 4,
+    essential: false,
+  },
+  {
     key: 'needs-controls',
     view: 'needs',
     selector: '[data-tour="needs-controls"]',

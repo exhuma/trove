@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import TroveWordmark from '@core/components/TroveWordmark.vue'
 import { useAuth } from '@core/auth'
 import { useOnboarding } from '../composables/useOnboarding'
 
-defineProps<{
+const props = defineProps<{
   sets: number
   owned: number
   wanted: number
@@ -13,6 +14,27 @@ defineProps<{
   needing: number
 }>()
 const emit = defineEmits<{ addSet: [] }>()
+
+// The quick stats are secondary, so the meter sits thin and legend-less by default
+// and only unfolds — thicker bar plus the numbered legend — when tapped. This
+// `expanded` flag is ephemeral (resets each load): a glanceable bar most of the
+// time, the full breakdown on demand.
+const expanded = ref(false)
+
+// The quick stats as a proportional stacked meter: each state's width is its share
+// of the four values combined. A legend below carries the real numbers, so nothing
+// is lost when copy-counts (owned/wanted) dwarf the set-counts (sets/complete).
+// Amber marks completion, per the repo's colour convention.
+const segments = computed(() => {
+  const items = [
+    { key: 'sets', value: props.sets, label: props.sets === 1 ? 'set' : 'sets', color: 'bg-violet' },
+    { key: 'owned', value: props.owned, label: 'owned', color: 'bg-violet-bright' },
+    { key: 'wanted', value: props.wanted, label: 'wanted', color: 'bg-ink-faint' },
+    { key: 'complete', value: props.completeSets, label: 'complete', color: 'bg-amber' },
+  ]
+  const total = items.reduce((n, i) => n + i.value, 0)
+  return items.map((i) => ({ ...i, pct: total ? (i.value / total) * 100 : 0 }))
+})
 
 const { signOut } = useAuth()
 const route = useRoute()
@@ -37,10 +59,40 @@ function takeTour() {
         <h1>
           <TroveWordmark size="md" />
         </h1>
-        <p class="mt-1 truncate text-xs text-ink-muted">
-          {{ sets }} {{ sets === 1 ? 'set' : 'sets' }} · {{ owned }} owned · {{ wanted }} wanted
-          <span v-if="completeSets" class="text-amber">· {{ completeSets }} complete</span>
-        </p>
+        <div class="mt-1.5">
+          <!-- Proportional stacked meter. Secondary info, so it stays thin and
+               legend-less until tapped; the button gives a comfortable hit area
+               around the slim bar and announces its expanded state. -->
+          <button
+            type="button"
+            data-tour="stats"
+            class="group block w-full py-1.5 text-left"
+            :aria-expanded="expanded"
+            :aria-label="`Collection stats: ${sets} sets, ${owned} owned, ${wanted} wanted, ${completeSets} complete. Tap to ${expanded ? 'collapse' : 'expand'}.`"
+            @click="expanded = !expanded"
+          >
+            <div
+              class="flex w-full gap-px overflow-hidden rounded-full bg-hall-line opacity-80 group-hover:opacity-100 motion-safe:transition-all"
+              :class="expanded ? 'h-2.5' : 'h-1'"
+            >
+              <div
+                v-for="s in segments"
+                :key="s.key"
+                class="h-full first:rounded-l-full last:rounded-r-full"
+                :class="s.color"
+                :style="{ width: s.pct + '%' }"
+              />
+            </div>
+          </button>
+          <!-- Legend: the real numbers, revealed only once the bar is expanded. -->
+          <dl v-if="expanded" class="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-ink-muted">
+            <div v-for="s in segments" :key="s.key" class="flex items-center gap-1">
+              <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="s.color" />
+              <dd class="tabular-nums text-ink">{{ s.value }}</dd>
+              <dt>{{ s.label }}</dt>
+            </div>
+          </dl>
+        </div>
       </div>
 
       <!-- Section nav lives in the header from `sm` up; on phones it drops to a

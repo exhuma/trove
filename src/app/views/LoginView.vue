@@ -88,13 +88,13 @@ async function submitMagicLink() {
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center px-6 py-10">
+  <main class="grid min-h-screen place-items-center px-6 py-8 sm:py-10">
     <div
-      class="grid w-full max-w-4xl items-center gap-10 sm:grid-cols-2 sm:gap-16"
+      class="grid w-full max-w-4xl items-center gap-6 sm:grid-cols-2 sm:gap-16"
     >
       <!-- Marketing hero: the pitch a signed-out visitor lands on. Stacked above
            the sign-in card on phones, beside it from sm: up. -->
-      <section class="flex flex-col gap-6 text-center sm:text-left">
+      <section class="flex flex-col gap-4 text-center sm:gap-6 sm:text-left">
         <h1 class="flex justify-center sm:justify-start">
           <TroveWordmark size="lg" />
         </h1>
@@ -107,7 +107,7 @@ async function submitMagicLink() {
             copies you own against a target, and see what you still need at a glance.
           </p>
         </div>
-        <ul class="mx-auto flex max-w-md flex-col gap-3 text-left sm:mx-0">
+        <ul class="mx-auto hidden max-w-md flex-col gap-3 text-left sm:mx-0 sm:flex">
           <li v-for="h in highlights" :key="h.title" class="flex gap-3">
             <TroveMark class="mt-0.5 h-5 w-5 shrink-0 text-violet-bright" />
             <span class="text-sm leading-snug text-ink-muted">
