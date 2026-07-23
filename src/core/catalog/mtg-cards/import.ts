@@ -137,6 +137,7 @@ async function resolveChunk(
       name: row.foil ? `${card.name} (Foil)` : card.name,
       subtitle: card.set_name,
       imageUrl,
+      variantKey: card.oracle_id,
     }
     items.push({ result, target: row.quantity })
   }

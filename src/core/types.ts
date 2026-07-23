@@ -11,6 +11,14 @@ export interface Collectible {
   /** Copies wanted (a playset is 4). At least 1. A card is complete once
    *  `owned >= target`. */
   target: number
+  /** Shared identity across printings of "the same card" — null for anything
+   *  added before this existed, or from a source with no such concept (e.g. a
+   *  booster). Collectibles with no key fall back to name-based grouping. */
+  variantKey: string | null
+  /** Free-text note. */
+  notes: string
+  /** ISO timestamp of when this collectible was added. */
+  addedAt: string
 }
 
 /** A named set of collectibles. */

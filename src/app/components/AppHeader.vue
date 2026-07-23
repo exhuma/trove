@@ -128,6 +128,13 @@ function takeTour() {
             {{ needing }}
           </span>
         </RouterLink>
+        <RouterLink
+          to="/manage"
+          exact-active-class="bg-hall-panel text-ink"
+          class="rounded-lg px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink motion-safe:transition"
+        >
+          Manage
+        </RouterLink>
       </nav>
 
       <!-- On phones the floating action button adds sets, so the header keeps

@@ -41,7 +41,9 @@ async function searchCards(query: string, signal: AbortSignal): Promise<CatalogS
   const results = (body.data ?? [])
     .flatMap<CatalogResult>((card) => {
       const imageUrl = imageOf(card)
-      return imageUrl ? [{ id: card.id, name: card.name, subtitle: card.set_name, imageUrl }] : []
+      return imageUrl
+        ? [{ id: card.id, name: card.name, subtitle: card.set_name, imageUrl, variantKey: card.oracle_id }]
+        : []
     })
     // A generous cap because a single popular card can have many distinct
     // printings, and the user is now choosing between them.

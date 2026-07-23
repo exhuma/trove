@@ -129,7 +129,11 @@ async function onAddMany(payload: { source: CatalogSource; items: { result: Cata
     for (const item of payload.items) {
       try {
         const blob = await payload.source.fetchImage(item.result, signal)
-        const result = await addCollectible(openSetId.value, { name: item.name, blob })
+        const result = await addCollectible(openSetId.value, {
+          name: item.name,
+          blob,
+          variantKey: item.result.variantKey,
+        })
         result.ok ? added++ : failed++
       } catch {
         failed++
@@ -162,6 +166,7 @@ async function onImport(items: CatalogImportItem[]) {
           name: item.result.name,
           blob,
           target: item.target,
+          variantKey: item.result.variantKey,
         })
         result.ok ? added++ : failed++
       } catch {

@@ -10,6 +10,9 @@ interface CollectibleRow {
   image_path: string
   owned: number
   target: number
+  variant_key: string | null
+  notes: string | null
+  created_at: string
 }
 
 interface SetRow {
@@ -44,7 +47,17 @@ async function signMany(paths: string[]): Promise<Map<string, string>> {
 }
 
 function toCollectible(row: CollectibleRow, url: string): Collectible {
-  return { id: row.id, name: row.name, image: url, imagePath: row.image_path, owned: row.owned, target: row.target }
+  return {
+    id: row.id,
+    name: row.name,
+    image: url,
+    imagePath: row.image_path,
+    owned: row.owned,
+    target: row.target,
+    variantKey: row.variant_key,
+    notes: row.notes ?? '',
+    addedAt: row.created_at,
+  }
 }
 
 /**
@@ -55,7 +68,9 @@ export class SupabaseCollectionRepository implements CollectionRepository {
   async listSets(): Promise<CollectibleSet[]> {
     const { data, error } = await supabase
       .from('sets')
-      .select('id, name, collectibles ( id, name, image_path, owned, target )')
+      .select(
+        'id, name, collectibles ( id, name, image_path, owned, target, variant_key, notes, created_at )',
+      )
       .order('created_at', { ascending: true })
       .order('created_at', { ascending: true, referencedTable: 'collectibles' })
     if (error) throw new Error(error.message)
@@ -96,6 +111,8 @@ export class SupabaseCollectionRepository implements CollectionRepository {
       image_path: c.imagePath,
       owned: c.owned,
       target: c.target,
+      variant_key: c.variantKey,
+      notes: c.notes,
     }))
     const { error } = await supabase.from('collectibles').insert(rows)
     if (error) throw new Error(error.message)
@@ -114,8 +131,14 @@ export class SupabaseCollectionRepository implements CollectionRepository {
 
     const { data, error } = await supabase
       .from('collectibles')
-      .insert({ set_id: setId, name: input.name, image_path: path, target: input.target ?? 1 })
-      .select('id, name, image_path, owned, target')
+      .insert({
+        set_id: setId,
+        name: input.name,
+        image_path: path,
+        target: input.target ?? 1,
+        variant_key: input.variantKey ?? null,
+      })
+      .select('id, name, image_path, owned, target, variant_key, notes, created_at')
       .single()
     if (error || !data) throw new Error(error?.message ?? 'Could not save the collectible.')
 
@@ -137,11 +160,16 @@ export class SupabaseCollectionRepository implements CollectionRepository {
       image_path: collectible.imagePath,
       owned: collectible.owned,
       target: collectible.target,
+      variant_key: collectible.variantKey,
+      notes: collectible.notes,
     })
     if (error) throw new Error(error.message)
   }
 
-  async updateCollectible(id: string, patch: { owned?: number; target?: number }): Promise<void> {
+  async updateCollectible(
+    id: string,
+    patch: { owned?: number; target?: number; notes?: string },
+  ): Promise<void> {
     const { error } = await supabase.from('collectibles').update(patch).eq('id', id)
     if (error) throw new Error(error.message)
   }

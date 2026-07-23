@@ -58,6 +58,9 @@ export class MemoryCollectionRepository implements CollectionRepository {
       imagePath: `memory/${crypto.randomUUID()}.webp`,
       owned: 0,
       target: Math.max(1, Math.floor(input.target ?? 1)),
+      variantKey: input.variantKey ?? null,
+      notes: '',
+      addedAt: new Date().toISOString(),
     }
     set.collectibles.push(collectible)
     return { ...collectible }
@@ -74,11 +77,15 @@ export class MemoryCollectionRepository implements CollectionRepository {
     set.collectibles.push({ ...collectible })
   }
 
-  async updateCollectible(id: string, patch: { owned?: number; target?: number }): Promise<void> {
+  async updateCollectible(
+    id: string,
+    patch: { owned?: number; target?: number; notes?: string },
+  ): Promise<void> {
     const hit = this.find(id)
     if (!hit) return
     const collectible = hit.set.collectibles[hit.index]
     if (patch.owned !== undefined) collectible.owned = patch.owned
     if (patch.target !== undefined) collectible.target = patch.target
+    if (patch.notes !== undefined) collectible.notes = patch.notes
   }
 }

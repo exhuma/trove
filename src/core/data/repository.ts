@@ -5,6 +5,8 @@ export interface NewCollectible {
   name: string
   blob: Blob
   target?: number
+  /** Shared identity across printings of "the same card", if the source has one. */
+  variantKey?: string
 }
 
 /**
@@ -33,5 +35,5 @@ export interface CollectionRepository {
   /** Undo of deleteCollectible: re-insert the row, reusing its existing imagePath. */
   restoreCollectible(setId: string, collectible: Collectible): Promise<void>
 
-  updateCollectible(id: string, patch: { owned?: number; target?: number }): Promise<void>
+  updateCollectible(id: string, patch: { owned?: number; target?: number; notes?: string }): Promise<void>
 }

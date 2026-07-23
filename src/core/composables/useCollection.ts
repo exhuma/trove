@@ -47,7 +47,11 @@ function scheduleWrite(collectibleId: string) {
       const current = sets.value.flatMap((s) => s.collectibles).find((c) => c.id === collectibleId)
       if (!current) return
       try {
-        await repo.updateCollectible(collectibleId, { owned: current.owned, target: current.target })
+        await repo.updateCollectible(collectibleId, {
+          owned: current.owned,
+          target: current.target,
+          notes: current.notes,
+        })
       } catch (err) {
         // The in-memory value may now disagree with the server; resync so the grid
         // reflects what was actually saved, and tell the user.
@@ -127,7 +131,7 @@ export function useCollection() {
 
   async function addCollectible(
     setId: string,
-    input: { name: string; blob: Blob; target?: number },
+    input: { name: string; blob: Blob; target?: number; variantKey?: string },
   ): Promise<MutationResult> {
     const set = sets.value.find((s) => s.id === setId)
     if (!set) return { ok: false, message: 'That set no longer exists.' }
@@ -142,12 +146,20 @@ export function useCollection() {
       imagePath: '',
       owned: 0,
       target: Math.max(1, Math.floor(input.target ?? 1)),
+      variantKey: input.variantKey ?? null,
+      notes: '',
+      addedAt: new Date().toISOString(),
     }
     set.collectibles.push(temp)
     sets.value = [...sets.value]
 
     try {
-      const saved = await repo.createCollectible(setId, { name: input.name, blob: input.blob, target: temp.target })
+      const saved = await repo.createCollectible(setId, {
+        name: input.name,
+        blob: input.blob,
+        target: temp.target,
+        variantKey: input.variantKey,
+      })
       const target = sets.value.find((s) => s.id === setId)
       if (target) {
         const i = target.collectibles.findIndex((c) => c.id === temp.id)
@@ -221,6 +233,13 @@ export function useCollection() {
     })
   }
 
+  /** Sets a collectible's free-text note. */
+  function setNotes(setId: string, collectibleId: string, notes: string): MutationResult {
+    return updateCollectible(setId, collectibleId, (c) => {
+      c.notes = notes
+    })
+  }
+
   /**
    * Applies a mutation to one collectible in memory (so the grid updates at once)
    * and schedules a debounced write. Persist failures resync from the server and
@@ -264,6 +283,7 @@ export function useCollection() {
     removeCollectible,
     setOwnedCount,
     setTarget,
+    setNotes,
     getSet: (id: string) => sets.value.find((s) => s.id === id),
   }
 }

@@ -7,6 +7,7 @@
 
 export interface ScryfallCard {
   id: string
+  oracle_id: string // shared across all printings of "the same card"
   name: string
   set: string // the lowercase set code, e.g. "mkc"
   set_name: string

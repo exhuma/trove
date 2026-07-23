@@ -29,6 +29,13 @@ export interface CatalogResult {
    * Defaults to `contain`.
    */
   fit?: 'contain' | 'cover'
+  /**
+   * Shared identity across results that are "the same underlying thing,
+   * differently printed" (e.g. Scryfall's oracle_id for an MTG card's other
+   * printings). Sources without such a concept omit it, leaving the collectible
+   * ungrouped until the app falls back to name-based grouping.
+   */
+  variantKey?: string
 }
 
 /** The outcome of a search: some results, nothing matched, or an error to show. */
