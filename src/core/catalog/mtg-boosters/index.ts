@@ -219,7 +219,6 @@ export const mtgBoostersSource: CatalogSource = {
   searchLabel: 'Search sealed products',
   placeholder: 'Foundations',
   hint: 'Booster boxes, bundles and packs. Matched offline; pick its artwork next.',
-  fetchingLabel: 'Fetching the picture…',
   emptyLabel: 'No sealed products match that name.',
   // Local search, so no rate limit to dodge — just enough to skip mid-word churn.
   debounceMs: 150,

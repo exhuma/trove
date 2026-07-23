@@ -14,7 +14,7 @@ import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from '../composables/useAddSetPrompt'
 import { useOnboarding } from '../composables/useOnboarding'
-import { CATALOG_SOURCES, type CatalogImportItem } from '@core/catalog'
+import { CATALOG_SOURCES, type CatalogImportItem, type CatalogResult, type CatalogSource } from '@core/catalog'
 import type { CollectibleSet } from '@core/types'
 
 // Header, error banner and the add-set dialog now live in the shell (App.vue) so
@@ -49,6 +49,8 @@ const openSet = computed(() => sets.value.find((s) => s.id === openSetId.value) 
 const showAddCollectible = ref(false)
 const addCollectibleError = ref('')
 const savingCollectible = ref(false)
+const addingMany = ref(false)
+const addManyProgress = ref({ done: 0, total: 0 })
 
 // Bulk import is offered by any catalogue source with an importer (only MTG
 // cards today); the overlay drives that one source.
@@ -111,6 +113,35 @@ async function onAddCollectible(payload: { name: string; blob: Blob }) {
   addCollectibleError.value = ''
   showAddCollectible.value = false
   push(`Added “${payload.name}”.`)
+}
+
+// A confirmed multi-select from the add-collectible dialog: fetch each pick's
+// image and add it through the same per-row seam as a single add. Mirrors
+// `onImport` below — sequential keeps the CDN load and memory sane.
+async function onAddMany(payload: { source: CatalogSource; items: { result: CatalogResult; name: string }[] }) {
+  if (!openSetId.value || addingMany.value) return
+  addingMany.value = true
+  addManyProgress.value = { done: 0, total: payload.items.length }
+  const signal = new AbortController().signal
+  let added = 0
+  let failed = 0
+  try {
+    for (const item of payload.items) {
+      try {
+        const blob = await payload.source.fetchImage(item.result, signal)
+        const result = await addCollectible(openSetId.value, { name: item.name, blob })
+        result.ok ? added++ : failed++
+      } catch {
+        failed++
+      }
+      addManyProgress.value = { done: added + failed, total: payload.items.length }
+    }
+  } finally {
+    addingMany.value = false
+  }
+  showAddCollectible.value = false
+  const summary = `Added ${added} ${added === 1 ? 'collectible' : 'collectibles'}.`
+  push(failed ? `${summary} ${failed} couldn’t be added.` : summary, failed ? { tone: 'error' } : undefined)
 }
 
 // Resolve happens inside the overlay; here we fetch each card's image and add it
@@ -247,7 +278,10 @@ function deleteSetMessage(set: CollectibleSet) {
     :set-name="openSet.name"
     :error="addCollectibleError"
     :saving="savingCollectible"
+    :adding-many="addingMany"
+    :add-many-progress="addManyProgress"
     @add="onAddCollectible"
+    @add-many="onAddMany"
     @zoom="(payload) => (zoomImage = payload)"
     @close="showAddCollectible = false"
   />

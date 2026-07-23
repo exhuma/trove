@@ -16,6 +16,7 @@ const props = defineProps<{
     minQueryLength: number
   }
   run: (query: string, signal: AbortSignal) => Promise<CatalogSearchOutcome>
+  selectedIds?: string[]
 }>()
 const emit = defineEmits<{ pick: [result: CatalogResult]; zoom: [result: CatalogResult] }>()
 
@@ -114,6 +115,7 @@ onBeforeUnmount(cancelPending)
       <CatalogResultGrid
         v-else
         :results="state.results"
+        :selected-ids="selectedIds"
         @pick="(result) => emit('pick', result)"
         @zoom="(result) => emit('zoom', result)"
       />

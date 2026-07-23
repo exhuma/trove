@@ -4,11 +4,20 @@ import BaseOverlay from './BaseOverlay.vue'
 import Spinner from './Spinner.vue'
 import CatalogFlow from '@core/components/CatalogFlow.vue'
 import { fileToStorableBlob } from '@core/image'
-import { CATALOG_SOURCES, type CatalogResult } from '@core/catalog'
+import { CATALOG_SOURCES, type CatalogResult, type CatalogSource } from '@core/catalog'
 
-const props = defineProps<{ setName: string; error?: string; saving?: boolean }>()
+const props = defineProps<{
+  setName: string
+  error?: string
+  saving?: boolean
+  // Set while a confirmed catalogue selection is being persisted; drives
+  // CatalogFlow's own progress bar.
+  addingMany?: boolean
+  addManyProgress?: { done: number; total: number }
+}>()
 const emit = defineEmits<{
   add: [payload: { name: string; blob: Blob }]
+  'add-many': [payload: { source: CatalogSource; items: { result: CatalogResult; name: string }[] }]
   zoom: [payload: { src: string; alt: string }]
   close: []
 }>()
@@ -65,23 +74,14 @@ function onDrop(event: DragEvent) {
   void acceptFile(event.dataTransfer?.files[0])
 }
 
-// The flow yields a final pick and the name to give the collectible (a booster
-// keeps its own name even though its picture is a refined card art). Fetch the
-// image and drop back to the form to confirm.
-async function onCommit(payload: { result: CatalogResult; name: string }) {
+// The flow yields a confirmed multi-select — every item already carries the
+// name to give its collectible (a booster keeps its own name even though its
+// picture is a refined card art). Fetching the image and persisting each one
+// is the parent's job (it owns `addCollectible`), same as bulk import.
+function onCommitMany(items: { result: CatalogResult; name: string }[]) {
   const source = activeSource.value
-  if (!source) return
-  localError.value = ''
-  busy.value = true
-  try {
-    setImage(await source.fetchImage(payload.result, new AbortController().signal))
-    name.value = payload.name
-    tab.value = UPLOAD
-  } catch (err) {
-    localError.value = (err as Error).message
-  } finally {
-    busy.value = false
-  }
+  if (!source || !items.length) return
+  emit('add-many', { source, items })
 }
 
 function submit() {
@@ -109,19 +109,17 @@ function submit() {
     </div>
 
     <template v-if="activeSource">
-      <!-- The source's search → (optional) artwork-refine → commit flow. -->
+      <!-- The source's search → (optional) artwork-refine → multi-select commit
+           flow. Fetching images and persisting is the parent's job; this overlay
+           just forwards the confirmed selection. -->
       <CatalogFlow
         :key="activeSource.key"
         :source="activeSource"
-        @commit="onCommit"
+        :saving="addingMany"
+        :progress="addManyProgress"
+        @commit="onCommitMany"
         @zoom="(result) => emit('zoom', { src: result.imageUrl, alt: result.name })"
       />
-
-      <!-- Picking downloads an image; if that fails the error must show here, on
-           the search tab, or the pick looks like it silently did nothing (there is
-           no submit button on this tab to carry it). -->
-      <p v-if="busy" class="mt-3 text-xs text-ink-muted">{{ activeSource.fetchingLabel }}</p>
-      <p v-else-if="localError" class="mt-3 text-xs text-danger">{{ localError }}</p>
     </template>
 
     <form v-else @submit.prevent="submit">

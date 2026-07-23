@@ -57,7 +57,6 @@ export const mtgCardsSource: CatalogSource = {
   searchLabel: 'Search Scryfall',
   placeholder: 'Lightning Bolt',
   hint: 'Needs a connection. The picture is stored in your account once you pick a card.',
-  fetchingLabel: 'Fetching the card image…',
   emptyLabel: 'No cards match that name.',
   debounceMs: SEARCH_DEBOUNCE_MS,
   search: searchCards,

@@ -115,8 +115,6 @@ export interface CatalogSource {
   placeholder: string
   /** Helper text under the search box. */
   hint: string
-  /** Copy shown between a pick and its image landing. */
-  fetchingLabel: string
   /** Message shown when a search matched nothing. */
   emptyLabel: string
   /**
