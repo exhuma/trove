@@ -64,6 +64,21 @@ export const TOUR_TIPS: readonly TourTip[] = [
     essential: false,
   },
   {
+    key: 'install-app',
+    view: 'collection',
+    // Anchored on the header Account button, which is always rendered and only
+    // carries this attribute when installing is possible. If it's absent (already
+    // installed, or the browser can't install), runTour skips the tip and doesn't
+    // persist it — so it simply retries on a later visit instead of misfiring.
+    selector: '[data-tour="install"]',
+    title: 'Install Trove',
+    body: 'Add Trove to your home screen for quick, app-like access — you’ll find the install option any time under Account.',
+    // Non-essential so it trickles in after the core "create a set / open a set"
+    // tips rather than crowding a first-timer's opening tour; still shown once.
+    priority: 5,
+    essential: false,
+  },
+  {
     key: 'needs-controls',
     view: 'needs',
     selector: '[data-tour="needs-controls"]',

@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
-import InstallBanner from './components/InstallBanner.vue'
+import InstallInstructions from './components/InstallInstructions.vue'
 import AppHeader from './components/AppHeader.vue'
 import AddSetOverlay from './components/AddSetOverlay.vue'
 import AccountOverlay from './components/AccountOverlay.vue'
@@ -14,6 +14,7 @@ import { useNeeds } from '@core/composables/useNeeds'
 import { useToast } from '@core/composables/useToast'
 import { useAddSetPrompt } from './composables/useAddSetPrompt'
 import { useAccountPrompt } from './composables/useAccountPrompt'
+import { useInstallPrompt } from './composables/useInstallPrompt'
 import { useOnboarding } from './composables/useOnboarding'
 
 // The shell owns the session→data lifecycle: load the collection when a user signs
@@ -25,6 +26,9 @@ const { needingCount, clearNeedsSnapshot } = useNeeds()
 const { push } = useToast()
 const { open: showAddSet, openAddSet, closeAddSet } = useAddSetPrompt()
 const { open: showAccount, openAccount, closeAccount } = useAccountPrompt()
+// Imported here (not only in a child) so the module — and its boot-time
+// beforeinstallprompt listener — evaluates on every route, including /login.
+const { guideOpen, closeGuide } = useInstallPrompt()
 const { showWelcome, ensureLoaded, reset: resetOnboarding } = useOnboarding()
 const router = useRouter()
 
@@ -101,6 +105,8 @@ async function onAddSet(name: string) {
   <AccountOverlay v-if="session && showAccount" @close="closeAccount" />
   <WelcomeOverlay v-if="session && showWelcome" />
   <UpdateBanner />
-  <InstallBanner v-if="session" />
+  <!-- Mounted regardless of session so the install steps are reachable from the
+       signed-out landing page too. -->
+  <InstallInstructions v-if="guideOpen" @close="closeGuide" />
   <ToastHost />
 </template>

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import TroveWordmark from '@core/components/TroveWordmark.vue'
 import { useAuth } from '@core/auth'
 import { useOnboarding } from '../composables/useOnboarding'
+import { useInstallPrompt } from '../composables/useInstallPrompt'
 
 const props = defineProps<{
   sets: number
@@ -39,6 +40,11 @@ const segments = computed(() => {
 const { signOut } = useAuth()
 const route = useRoute()
 const { replayTour } = useOnboarding()
+// The Account button doubles as the anchor for the one-time install tip — the
+// Account dialog is where the install action lives. Only tagged when installing
+// is actually possible, so the tip stays hidden (and, per the tour runner,
+// unpersisted) when there's nothing to install.
+const { installOffered } = useInstallPrompt()
 
 // Always-available entry to the guided tour, so dismissing the first-run welcome is
 // never a dead end. Replays the tour for whichever section the user is on.
@@ -151,6 +157,7 @@ function takeTour() {
       </button>
 
       <button
+        :data-tour="installOffered ? 'install' : undefined"
         class="shrink-0 rounded-lg border border-hall-line p-2 text-ink-muted hover:border-violet hover:text-ink motion-safe:transition"
         aria-label="Account"
         title="Account"

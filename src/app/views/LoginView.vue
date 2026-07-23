@@ -8,6 +8,7 @@ import TroveWordmark from '@core/components/TroveWordmark.vue'
 import TroveMark from '@core/components/TroveMark.vue'
 import ProviderGlyph from '../components/ProviderGlyph.vue'
 import AppVersion from '../components/AppVersion.vue'
+import { useInstallPrompt } from '../composables/useInstallPrompt'
 
 // Shown signed-out alongside the sign-in card to pitch the tool at a first-time
 // visitor. Kept as data so the markup stays a simple list.
@@ -27,6 +28,7 @@ const highlights = [
 ]
 
 const { signInWithPassword, signUp, signInWithMagicLink, signInWithOAuth } = useAuth()
+const { installOffered, install } = useInstallPrompt()
 const router = useRouter()
 
 // Which social providers to show is discovered live from Supabase on mount, so a
@@ -225,6 +227,21 @@ async function submitMagicLink() {
           Already have an account?
           <button class="text-violet-bright hover:underline" @click="((mode = 'signin'), reset())">Sign in</button>
         </template>
+      </p>
+
+      <!-- Install is available before signing in too — no account needed to add
+           Trove to a home screen. Hidden once already installed. -->
+      <p v-if="installOffered" class="mt-6 text-center">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink sm:text-xs"
+          @click="install"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Install app
+        </button>
       </p>
 
       <p class="mt-8 flex justify-center">
